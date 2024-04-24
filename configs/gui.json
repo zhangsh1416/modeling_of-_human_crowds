@@ -1,0 +1,14 @@
+{
+    "colors": {
+        "empty": [255, 255, 255],
+        "target": [255, 255, 0],
+        "obstacle": [255, 0, 255],
+        "pedestrian": [255, 0, 0]
+    },
+    "window_size": {
+        "width": 1100,
+        "height": 700
+    },
+    "buttons_height": 50,
+    "step_ms": 25
+}
