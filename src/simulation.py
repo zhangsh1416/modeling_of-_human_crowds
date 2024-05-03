@@ -108,7 +108,7 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
         finished = True
-        pedestrians = self.pedestrians
+        pedestrians = self.pedestrians[:]
         for pedestrian in pedestrians:
             reachable_positions = self.get_reachable_positions(pedestrian, pedestrian.speed)
             highest_utility = -float('inf')
@@ -126,14 +126,12 @@ class Simulation:
             if  best_position not in target_positions:
                 self.pedestrians.remove(pedestrian)
                 pedestrian.x, pedestrian.y = best_position
-                self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                 self.pedestrians.append(pedestrian)
                 finished = False
             elif best_position in target_positions and self.is_absorbing:
                 self.pedestrians.remove(pedestrian)
-                finished = False
-            elif best_position in target_positions and not self.is_absorbing:
-                pass
+          # elif best_position in target_positions and not self.is_absorbing:
+         #      pass
             else:
                 pass  # No movement but still active
         self.current_step += 1
