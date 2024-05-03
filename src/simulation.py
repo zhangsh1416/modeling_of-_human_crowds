@@ -254,34 +254,39 @@ class Simulation:
     def _compute_dijkstra_distance_grid(
             self, targets: tuple[utils.Position]
     ) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable."""
+        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable.
+        Targets start with a distance of zero. Cells that are obstacles or unreachable remain at infinity."""
 
+        # Initialize the distance array with infinity
         distances = np.full((self.width, self.height), np.inf)
-        closed = np.zeros((self.width, self.height), dtype=bool)  # Closed set to keep track of processed cells
+        # Mark obstacles in a separate array to exclude them from processing
+        obstacles = self.grid == el.ScenarioElement.obstacle
+
+        # Priority queue for Dijkstra's algorithm
         pq = queue.PriorityQueue()
+        # Set the distance for target cells and add them to the queue
         for target in targets:
             x, y = target.x, target.y
-            closed[x, y] = True  # Mark the target positions as closed
-            distances[x, y] = 0
-            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # Directions: right, down, left, up
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height and not closed[nx, ny] and self.grid[
-                    nx, ny] != el.ScenarioElement.obstacle:
-                    pq.put((1, (nx, ny)))  # Start with distance 1 for direct neighbors
+            if not obstacles[x, y]:  # Only proceed if the target is not an obstacle
+                distances[x, y] = 0
+                pq.put((0, (x, y)))
+
+        # Define movement directions (right, down, left, up)
+        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
 
         while not pq.empty():
             current_distance, (x, y) = pq.get()
-            if closed[x, y]:  # If already processed, continue
-                continue
-            closed[x, y] = True
-            distances[x, y] = current_distance
-            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # Explore neighbors
+
+            # Process each neighbor
+            for dx, dy in directions:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height and not closed[nx, ny] and self.grid[
-                    nx, ny] != el.ScenarioElement.obstacle:
-                    new_distance = current_distance + 1
+                # Ensure the neighbor is within grid bounds and is not an obstacle
+                if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
+                    new_distance = current_distance + 1  # Increment the distance
+                    # Only update if the new distance is smaller
                     if new_distance < distances[nx, ny]:
-                        pq.put((new_distance, (nx, ny)))  # Update the priority queue with the new distance
+                        distances[nx, ny] = new_distance
+                        pq.put((new_distance, (nx, ny)))
 
         return distances
 
