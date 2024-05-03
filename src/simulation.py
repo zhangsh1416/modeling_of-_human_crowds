@@ -112,11 +112,11 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
 
-        distance_grid = self.get_distance_grid()  # Calculates distances considering obstacles
+        distance_grid = self.get_distance_grid()  # Assuming this method computes distance to targets considering obstacles
         pedestrian_grid = self._compute_pedestrian_grid()  # Tracks current positions of pedestrians
         finished = True
-        active_pedestrians = []  # This list will store pedestrians who need to continue in the simulation
-        occupied_positions = set()  # To prevent pedestrians from overlapping
+        active_pedestrians = []
+        occupied_positions = set()
 
         for pedestrian in self.pedestrians:
             current_position = (pedestrian.x, pedestrian.y)
@@ -126,34 +126,35 @@ class Simulation:
             best_position = None
 
             for pos in reachable_positions:
-                if pos not in occupied_positions:  # Ensure no other pedestrian occupies this cell
+                if pos not in occupied_positions:
                     utility = self.compute_utility(pedestrian, pos, distance_grid, pedestrian_grid)
                     if utility > highest_utility:
                         highest_utility = utility
                         best_position = pos
 
+            # Ensure the best position is updated correctly
             if best_position:
-                pedestrian.x, pedestrian.y = best_position  # Move pedestrian to the best position
-                occupied_positions.add(best_position)  # Mark this position as occupied
-                finished = False
+                pedestrian.x, pedestrian.y = best_position
+                occupied_positions.add(best_position)
+                finished = False  # Ensure the simulation continues if any pedestrian moves
             else:
-                active_pedestrians.append(
-                    pedestrian)  # If no position has higher utility, keep pedestrian in the current position
+                # Add the pedestrian back to active list if no better position found
+                active_pedestrians.append(pedestrian)
 
-            # Record data at measuring points if within the active period and bounds
+            # Handle measuring points data recording
             self.record_pedestrian_at_measuring_points(pedestrian, current_position)
 
         self.pedestrians = active_pedestrians  # Update the list of active pedestrians
-        self.current_step += 1  # Increment the simulation step
+        self.current_step += 1
 
         return finished
 
     def get_reachable_positions(self, pedestrian, speed):
-        """Compute reachable positions based on pedestrian's speed and position, considering obstacles."""
+        """计算行人可达的位置，考虑障碍和速度限制"""
         reachable_positions = []
         for dx in range(-speed, speed + 1):
             for dy in range(-speed, speed + 1):
-                if dx ** 2 + dy ** 2 <= speed ** 2:  # Check within Euclidean distance
+                if dx ** 2 + dy ** 2 <= speed ** 2:
                     new_x, new_y = pedestrian.x + dx, pedestrian.y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
                         if self.grid[new_x, new_y] != el.ScenarioElement.obstacle:
