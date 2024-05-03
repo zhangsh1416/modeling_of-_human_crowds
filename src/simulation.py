@@ -90,14 +90,6 @@ class Simulation:
         utility = -distance_to_target - interaction_cost
         return utility
 
-    def is_within_bounds(self, measuring_point, position):
-        """Check if a position is within the bounds defined by a measuring point."""
-        upper_left = measuring_point.upper_left
-        lower_right_x = upper_left.x + measuring_point.size.width
-        lower_right_y = upper_left.y + measuring_point.size.height
-        return (upper_left.x <= position.x < lower_right_x and
-                upper_left.y <= position.y < lower_right_y)
-
     def update(self, perturb: bool = True) -> bool:
 
         """Performs one step of the simulation.
@@ -123,11 +115,12 @@ class Simulation:
         pedestrian_grid = self._compute_pedestrian_grid()
         finished = True
         active_pedestrians = []
+        measuring_data = {mp.ID: [] for mp in self.measuring_points}  # Temporary storage for pedestrian speeds
 
         for pedestrian in self.pedestrians:
             current_position = utils.Position(pedestrian.x, pedestrian.y)
 
-            # Directly integrate measuring point logic
+            # Check active period and spatial bounds for each measuring point
             for mp in self.measuring_points:
                 if self.current_step >= mp.delay and self.current_step < mp.delay + mp.measuring_time:
                     upper_left = mp.upper_left
@@ -135,16 +128,14 @@ class Simulation:
                     lower_right_y = upper_left.y + mp.size.height
                     if (upper_left.x <= current_position.x < lower_right_x and
                             upper_left.y <= current_position.y < lower_right_y):
-                        if mp.ID not in self.measuring_points:
-                            self.measuring_points[mp.ID] = []
-                        self.measuring_points[mp.ID].append(pedestrian.speed)
+                        measuring_data[mp.ID].append(pedestrian.speed)
 
             # Move pedestrians if they have not reached their target
             if distance_grid[current_position.x, current_position.y] == 0:
                 if self.is_absorbing:
-                    continue  # If the target is absorbing, do not add this pedestrian to the active list
+                    continue
                 else:
-                    active_pedestrians.append(pedestrian)  # Pedestrian remains active but doesn't move
+                    active_pedestrians.append(pedestrian)
                     continue
 
             possible_positions = []
@@ -171,10 +162,17 @@ class Simulation:
             if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
                 active_pedestrians.append(pedestrian)
 
-        self.pedestrians = active_pedestrians  # Update the list of active pedestrians
-        self.current_step += 1  # Increment the simulation step
+        self.pedestrians = active_pedestrians
+        self.current_step += 1
 
-        return finished  # Return True if simulation should terminate
+        # After update calculations, you can process measuring_data as needed
+        # For example, computing mean speeds for each measuring point
+        for mp_id, speeds in measuring_data.items():
+            if speeds:
+                mean_speed = sum(speeds) / len(speeds)
+                print(f"Mean speed at measuring point {mp_id}: {mean_speed}")
+
+        return finished
 
     def get_grid(self) -> npt.NDArray[el.ScenarioElement]:
         """Returns a full state grid of the shape (width, height)."""
