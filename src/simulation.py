@@ -131,8 +131,8 @@ class Simulation:
             highest_utility = -float('inf')
 
             # Consider movement within the speed limit of the pedestrian
-            for dx in range(-pedestrian.speed, pedestrian.speed + 1):
-                for dy in range(-pedestrian.speed, pedestrian.speed + 1):
+            for dx in range(-pedestrian.speed, pedestrian.speed):
+                for dy in range(-pedestrian.speed, pedestrian.speed):
                     new_x, new_y = current_x + dx, current_y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
                         utility = self.compute_utility(pedestrian, (new_x, new_y), distance_grid, pedestrian_grid)
