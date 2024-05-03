@@ -251,34 +251,39 @@ class Simulation:
 
         return distances
 
-
     def _compute_dijkstra_distance_grid(
-        self, targets: tuple[utils.Position]
+            self, targets: tuple[utils.Position]
     ) -> npt.NDArray[np.float64]:
         """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable."""
 
         distances = np.full((self.width, self.height), np.inf)
-        # Start with targets having distance zero
+        closed = np.zeros((self.width, self.height), dtype=bool)  # Closed set to keep track of processed cells
         pq = queue.PriorityQueue()
         for target in targets:
-            distances[target.x, target.y] = 0
-            pq.put((0, (target.x, target.y)))
-
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # Directions to move in the grid: right, down, left, up
+            x, y = target.x, target.y
+            closed[x, y] = True  # Mark the target positions as closed
+            distances[x, y] = 0
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # Directions: right, down, left, up
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < self.width and 0 <= ny < self.height and not closed[nx, ny] and self.grid[
+                    nx, ny] != el.ScenarioElement.obstacle:
+                    pq.put((1, (nx, ny)))  # Start with distance 1 for direct neighbors
 
         while not pq.empty():
             current_distance, (x, y) = pq.get()
-            # Check each possible direction
-            for dx, dy in directions:
+            if closed[x, y]:  # If already processed, continue
+                continue
+            closed[x, y] = True
+            distances[x, y] = current_distance
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # Explore neighbors
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height and self.grid[nx, ny] != el.ScenarioElement.obstacle:
-                    new_distance = current_distance + 1  # Increment the distance for each step
+                if 0 <= nx < self.width and 0 <= ny < self.height and not closed[nx, ny] and self.grid[
+                    nx, ny] != el.ScenarioElement.obstacle:
+                    new_distance = current_distance + 1
                     if new_distance < distances[nx, ny]:
-                        distances[nx, ny] = new_distance
-                        pq.put((new_distance, (nx, ny)))
+                        pq.put((new_distance, (nx, ny)))  # Update the priority queue with the new distance
 
         return distances
-
 
     def _get_neighbors(
         self, position: utils.Position, shuffle: bool = True
