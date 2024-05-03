@@ -152,10 +152,15 @@ class Simulation:
                                 possible_positions.append(new_position)
 
             # Move pedestrian to the position of highest utility
+            occupied_positions = set()
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
-                pedestrian.x, pedestrian.y = best_position  # Update pedestrian's position
-                finished = False
+                if best_position not in occupied_positions:  # Ensure no overlap
+                    pedestrian.x, pedestrian.y = best_position
+                    occupied_positions.add(best_position)  # Mark position as occupied
+                    finished = False
+                else:
+                    active_pedestrians.append(pedestrian)  # If overlap would occur, do not move pedestrian
 
             # Check if pedestrian has reached a target
             if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
@@ -267,39 +272,28 @@ class Simulation:
 
         return distances
 
-    def _compute_dijkstra_distance_grid(
-            self, targets: tuple[utils.Position]
-    ) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable.
-        Targets start with a distance of zero. Cells that are obstacles or unreachable remain at infinity."""
+    def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
+        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable."""
+        distances = np.full((self.width, self.height), np.inf)  # Initialize distances to infinity
+        obstacles = self.grid == el.ScenarioElement.obstacle  # Identify obstacle locations
 
-        # Initialize the distance array with infinity
-        distances = np.full((self.width, self.height), np.inf)
-        # Mark obstacles in a separate array to exclude them from processing
-        obstacles = self.grid == el.ScenarioElement.obstacle
-
-        # Priority queue for Dijkstra's algorithm
         pq = queue.PriorityQueue()
-        # Set the distance for target cells and add them to the queue
         for target in targets:
             x, y = target.x, target.y
-            if not obstacles[x, y]:  # Only proceed if the target is not an obstacle
+            if not obstacles[x, y]:  # Ensure target is not an obstacle
                 distances[x, y] = 0
                 pq.put((0, (x, y)))
 
-        # Define movement directions (right, down, left, up)
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-
         while not pq.empty():
             current_distance, (x, y) = pq.get()
+            if current_distance > distances[x, y]:  # Check if a shorter path to (x, y) has been found
+                continue
 
-            # Process each neighbor
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
-                # Ensure the neighbor is within grid bounds and is not an obstacle
                 if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
-                    new_distance = current_distance + 1  # Increment the distance
-                    # Only update if the new distance is smaller
+                    new_distance = current_distance + 1  # Step cost is 1
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance
                         pq.put((new_distance, (nx, ny)))
