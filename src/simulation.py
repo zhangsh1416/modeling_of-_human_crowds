@@ -95,7 +95,6 @@ class Simulation:
         upper_left = measuring_point.upper_left
         lower_right_x = upper_left.x + measuring_point.size.width
         lower_right_y = upper_left.y + measuring_point.size.height
-
         return (upper_left.x <= position.x < lower_right_x and
                 upper_left.y <= position.y < lower_right_y)
 
@@ -128,10 +127,17 @@ class Simulation:
         for pedestrian in self.pedestrians:
             current_position = utils.Position(pedestrian.x, pedestrian.y)
 
+            # Directly integrate measuring point logic
             for mp in self.measuring_points:
                 if self.current_step >= mp.delay and self.current_step < mp.delay + mp.measuring_time:
-                    if self.is_within_bounds(mp, current_position):
-                        mp.record_pedestrian(pedestrian.speed)
+                    upper_left = mp.upper_left
+                    lower_right_x = upper_left.x + mp.size.width
+                    lower_right_y = upper_left.y + mp.size.height
+                    if (upper_left.x <= current_position.x < lower_right_x and
+                            upper_left.y <= current_position.y < lower_right_y):
+                        if mp.ID not in self.measuring_point_data:
+                            self.measuring_point_data[mp.ID] = []
+                        self.measuring_point_data[mp.ID].append(pedestrian.speed)
 
             # Move pedestrians if they have not reached their target
             if distance_grid[current_position.x, current_position.y] == 0:
@@ -144,13 +150,11 @@ class Simulation:
             possible_positions = []
             highest_utility = -float('inf')
 
-            # Consider movement within the speed limit of the pedestrian
             for dx in range(-pedestrian.speed, pedestrian.speed + 1):
                 for dy in range(-pedestrian.speed, pedestrian.speed + 1):
                     new_x, new_y = pedestrian.x + dx, pedestrian.y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if self.grid[
-                            new_x, new_y] != el.ScenarioElement.obstacle:  # Ensure the new position is not an obstacle
+                        if self.grid[new_x, new_y] != el.ScenarioElement.obstacle:
                             new_position = (new_x, new_y)
                             utility = self.compute_utility(pedestrian, new_position, distance_grid, pedestrian_grid)
                             if utility > highest_utility:
@@ -161,11 +165,10 @@ class Simulation:
 
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
-                pedestrian.x, pedestrian.y = best_position  # Update pedestrian's position
+                pedestrian.x, pedestrian.y = best_position
                 finished = False
 
-            # Check if pedestrian has reached a target
-            if not (distance_grid[(pedestrian.x, pedestrian.y)] == 0 and self.is_absorbing):
+            if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
                 active_pedestrians.append(pedestrian)
 
         self.pedestrians = active_pedestrians  # Update the list of active pedestrians
@@ -208,6 +211,7 @@ class Simulation:
             A dict in the form {measuring_point_id: flow}.
         """
         return {mp.id: mp.get_flow() for mp in self.measuring_points}
+
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
