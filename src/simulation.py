@@ -135,9 +135,9 @@ class Simulation:
                     lower_right_y = upper_left.y + mp.size.height
                     if (upper_left.x <= current_position.x < lower_right_x and
                             upper_left.y <= current_position.y < lower_right_y):
-                        if mp.ID not in self.measuring_point_data:
-                            self.measuring_point_data[mp.ID] = []
-                        self.measuring_point_data[mp.ID].append(pedestrian.speed)
+                        if mp.ID not in self.measuring_point:
+                            self.measuring_point[mp.ID] = []
+                        self.measuring_point[mp.ID].append(pedestrian.speed)
 
             # Move pedestrians if they have not reached their target
             if distance_grid[current_position.x, current_position.y] == 0:
