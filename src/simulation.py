@@ -89,51 +89,53 @@ class Simulation:
         return utility
 
     def update(self, perturb: bool = True) -> bool:
-        """Performs one step of the simulation."""
-
         if perturb:
             np.random.shuffle(self.pedestrians)
 
         finished = True
         target_positions = {(target.x, target.y) for target in self.targets}
+        occupied_positions = {(p.x, p.y) for p in self.pedestrians}
+
         new_pedestrians = []
         for pedestrian in self.pedestrians:
-            # 增加行人的移动信用
-            pedestrian.move_credit += pedestrian.speed
+            if pedestrian.move_credit < 1:
+                pedestrian.move_credit += pedestrian.speed
+                continue  # Skip movement this turn if not enough credit
 
-            # 如果移动信用大于或等于1，则尝试移动行人
-            if pedestrian.move_credit >= 1:
-                reachable_positions = self.get_reachable_positions(pedestrian, math.floor(pedestrian.move_credit))
-                highest_utility = -float('inf')
-                best_position = None
-                utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
+            reachable_positions = self.get_reachable_positions(pedestrian, math.floor(pedestrian.move_credit))
+            highest_utility = -float('inf')
+            best_position = None
+            utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
 
-                for pos in reachable_positions:
-                    x, y = pos
-                    utility_value = utility_values[x][y]  # 假设已预先计算好
-                    if utility_value > highest_utility:
-                        highest_utility = utility_value
-                        best_position = pos
+            for pos in reachable_positions:
+                if pos in occupied_positions:
+                    continue  # Skip if position is already occupied
+                x, y = pos
+                utility_value = utility_values[x][y]
+                if utility_value > highest_utility:
+                    highest_utility = utility_value
+                    best_position = pos
 
-                if best_position in target_positions and self.is_absorbing:
-                    # If the position is a target and absorbing is true, remove pedestrian from simulation
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
-                    pedestrian.move_credit = 0  # Reset move credit since the pedestrian is absorbed
-                elif best_position and (
-                        best_position not in self.occupied_positions or best_position in target_positions):
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty  # Clear old position
-                    pedestrian.x, pedestrian.y = best_position  # Update position
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian  # Mark new position
-                    pedestrian.move_credit -= math.floor(pedestrian.move_credit)  # Subtract the used move credit
-                    new_pedestrians.append(pedestrian)
-                    finished = False
+            if best_position:
+                if best_position in target_positions:
+                    if self.is_absorbing:
+                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
+                        occupied_positions.remove((pedestrian.x, pedestrian.y))
+                        continue
                 else:
+                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
+                    pedestrian.x, pedestrian.y = best_position
+                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                    pedestrian.move_credit -= math.floor(pedestrian.move_credit)  # Reset move credit after movement
+                    occupied_positions.add(best_position)
                     new_pedestrians.append(pedestrian)
                     finished = False
+            else:
+                new_pedestrians.append(pedestrian)  # Re-add pedestrian if no valid move found
 
-                self.pedestrians = new_pedestrians
-                self.current_step += 1
-                return finished
+        self.pedestrians = new_pedestrians
+        self.current_step += 1
+        return finished
 
     def get_reachable_positions(self, pedestrian, move_credit_floor):
         x_start, y_start = pedestrian.x, pedestrian.y
@@ -246,48 +248,30 @@ class Simulation:
 
         return distances
 
-    def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable.
-        Each cell's distance is initialized to infinity unless it is a target. If a cell is an obstacle,
-        or it is unreachable from any target, its distance remains infinity."""
-        # Initialize the distance grid with infinity values
+    def _compute_dijkstra_distance_grid(self, targets):
         distances = np.full((self.width, self.height), np.inf)
-        # Determine obstacle locations in the grid
+        pq = queue.PriorityQueue()
         obstacles = self.grid == el.ScenarioElement.obstacle
 
-        # Priority queue to manage cells by distance
-        pq = queue.PriorityQueue()
-
-        # Initialize the queue with target positions at distance 0
         for target in targets:
             x, y = target.x, target.y
-            if not obstacles[x, y]:  # Only proceed if the target is not an obstacle
+            if not obstacles[x, y]:
                 distances[x, y] = 0
-                pq.put((0, (x, y)))
+                pq.put((0, x, y))
 
-        # Define relative positions for neighbor cells (N, E, S, W)
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-
-        # Process the queue
         while not pq.empty():
-            current_distance, (x, y) = pq.get()
-
-            # Skip processing if we find a shorter path already processed
+            current_distance, x, y = pq.get()
             if current_distance > distances[x, y]:
-                continue
+                continue  # This check is crucial to prevent unnecessary work
 
-            # Check each neighbor of the current cell
-            for dx, dy in directions:
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 nx, ny = x + dx, y + dy
-                # Ensure the neighbor is within bounds and is not an obstacle
                 if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
-                    new_distance = current_distance + 1  # Assuming uniform cost for simplicity
-                    # Update the neighbor's distance if a shorter path is found
+                    new_distance = current_distance + 1
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance
-                        pq.put((new_distance, (nx, ny)))
+                        pq.put((new_distance, nx, ny))
 
-        # The distances grid is returned, where unreachable and obstacle cells remain infinity
         return distances
 
     def _get_neighbors(
