@@ -112,36 +112,32 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
 
-        distance_grid = self.get_distance_grid()
-        pedestrian_grid = self._compute_pedestrian_grid()
+        distance_grid = self.get_distance_grid()  # Assuming this method computes distance to targets considering obstacles
+        pedestrian_grid = self._compute_pedestrian_grid()  # Assuming this method computes grid of distances to nearest pedestrian
         finished = True
         active_pedestrians = []
-        measuring_data = {mp.ID: [] for mp in self.measuring_points}  # Temporary storage for pedestrian speeds
 
         for pedestrian in self.pedestrians:
             current_position = utils.Position(pedestrian.x, pedestrian.y)
 
-            # Check active period and spatial bounds for each measuring point
+            # Record speeds at measuring points if within the active period and bounds
             for mp in self.measuring_points:
                 if self.current_step >= mp.delay and self.current_step < mp.delay + mp.measuring_time:
-                    upper_left = mp.upper_left
-                    lower_right_x = upper_left.x + mp.size.width
-                    lower_right_y = upper_left.y + mp.size.height
-                    if (upper_left.x <= current_position.x < lower_right_x and
-                            upper_left.y <= current_position.y < lower_right_y):
-                        measuring_data[mp.ID].append(pedestrian.speed)
+                    if self.is_within_bounds(mp, current_position):
+                        self.measuring_point_data[mp.ID].append(pedestrian.speed)
 
-            # Move pedestrians if they have not reached their target
+            # Determine movement based on utility calculation
             if distance_grid[current_position.x, current_position.y] == 0:
                 if self.is_absorbing:
-                    continue
+                    continue  # If the target is absorbing, do not add this pedestrian to the active list
                 else:
-                    active_pedestrians.append(pedestrian)
+                    active_pedestrians.append(pedestrian)  # Pedestrian remains active but doesn't move
                     continue
 
             possible_positions = []
             highest_utility = -float('inf')
 
+            # Consider movement within the speed limit of the pedestrian
             for dx in range(-pedestrian.speed, pedestrian.speed + 1):
                 for dy in range(-pedestrian.speed, pedestrian.speed + 1):
                     new_x, new_y = pedestrian.x + dx, pedestrian.y + dy
@@ -155,25 +151,20 @@ class Simulation:
                             elif utility == highest_utility:
                                 possible_positions.append(new_position)
 
+            # Move pedestrian to the position of highest utility
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
-                pedestrian.x, pedestrian.y = best_position
+                pedestrian.x, pedestrian.y = best_position  # Update pedestrian's position
                 finished = False
 
+            # Check if pedestrian has reached a target
             if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
                 active_pedestrians.append(pedestrian)
 
-        self.pedestrians = active_pedestrians
-        self.current_step += 1
+        self.pedestrians = active_pedestrians  # Update the list of active pedestrians
+        self.current_step += 1  # Increment the simulation step
 
-        # After update calculations, you can process measuring_data as needed
-        # For example, computing mean speeds for each measuring point
-        for mp_id, speeds in measuring_data.items():
-            if speeds:
-                mean_speed = sum(speeds) / len(speeds)
-                print(f"Mean speed at measuring point {mp_id}: {mean_speed}")
-
-        return finished
+        return finished  # Return True if simulation should terminate
 
     def get_grid(self) -> npt.NDArray[el.ScenarioElement]:
         """Returns a full state grid of the shape (width, height)."""
@@ -201,21 +192,22 @@ class Simulation:
         distance_grid = self._compute_distance_grid(self.targets)
         return distance_grid
 
-    def get_measured_flows(self) -> dict[int, float]:
-        """Returns a map of measuring points' ids to their flows (mean speeds).
+    def is_within_bounds(self, mp, position):
+        """Check if a position is within the bounds defined by a measuring point."""
+        upper_left = mp.upper_left
+        lower_right_x = upper_left.x + mp.size.width
+        lower_right_y = upper_left.y + mp.size.height
+        return (upper_left.x <= position.x < lower_right_x and
+                upper_left.y <= position.y < lower_right_y)
 
-        Returns:
-        --------
-        dict[int, float]
-            A dict in the form {measuring_point_id: mean_flow}.
-        """
+    def get_measured_flows(self):
+        """Returns a map of measuring points' ids to their computed mean flows."""
         mean_flows = {}
         for mp_id, speeds in self.measuring_point_data.items():
-            if speeds:  # Ensure there are speeds recorded to avoid division by zero
+            if speeds:
                 mean_flows[mp_id] = sum(speeds) / len(speeds)
             else:
-                mean_flows[mp_id] = 0.0  # No pedestrian passed through this point
-
+                mean_flows[mp_id] = 0.0  # No data recorded
         return mean_flows
 
     def _compute_distance_grid(
