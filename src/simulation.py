@@ -29,6 +29,8 @@ class Simulation:
         self.obstacles = config.obstacles
         self.is_absorbing = config.is_absorbing
         self.distance_computation = config.distance_computation
+        self.measuring_points = config.measuring_points  # Assuming this is provided by the configuration
+        self.current_step = 0  # Initialize current_step attribute
 
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
@@ -112,19 +114,25 @@ class Simulation:
         distance_grid = self.get_distance_grid()  # Calculate distances considering obstacles
         pedestrian_grid = self._compute_pedestrian_grid()  # Track current positions of pedestrians
 
+        current_step = self.current_step  # Assumes there is a self.current_step attribute tracking the simulation steps
         finished = True  # Assume all pedestrians are finished unless proven otherwise
         active_pedestrians = []  # List to keep track of active pedestrians after this update
 
         for pedestrian in self.pedestrians:
-            current_x, current_y = pedestrian.x, pedestrian.y
+            current_position = (pedestrian.x, pedestrian.y)
 
-            if distance_grid[current_x, current_y] == 0:
+            # Check and record pedestrian data at measuring points if in measuring period
+            for mp in self.measuring_points:
+                if current_step >= mp.delay and current_step < mp.delay + mp.measuring_time:
+                    if mp.is_within_bounds(pedestrian.position):
+                        mp.record_pedestrian(pedestrian.speed)
+
+            # Move pedestrians if they have not reached their target
+            if distance_grid[current_position] == 0:
                 if self.is_absorbing:
-                    # If the target is absorbing, do not add this pedestrian to the active list
-                    continue
+                    continue  # If the target is absorbing, do not add this pedestrian to the active list
                 else:
-                    # If the target is not absorbing, add the pedestrian to the active list but do not move them
-                    active_pedestrians.append(pedestrian)
+                    active_pedestrians.append(pedestrian)  # Pedestrian remains active but doesn't move
                     continue
 
             possible_positions = []
@@ -133,29 +141,31 @@ class Simulation:
             # Consider movement within the speed limit of the pedestrian
             for dx in range(-pedestrian.speed, pedestrian.speed + 1):
                 for dy in range(-pedestrian.speed, pedestrian.speed + 1):
-                    new_x, new_y = current_x + dx, current_y + dy
+                    new_x, new_y = pedestrian.x + dx, pedestrian.y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
                         if self.grid[
-                            new_x, new_y] != el.ScenarioElement.obstacle:  # Check if the new position is not an obstacle
-                            utility = self.compute_utility(pedestrian, (new_x, new_y), distance_grid, pedestrian_grid)
+                            new_x, new_y] != el.ScenarioElement.obstacle:  # Ensure the new position is not an obstacle
+                            new_position = (new_x, new_y)
+                            utility = self.compute_utility(pedestrian, new_position, distance_grid, pedestrian_grid)
                             if utility > highest_utility:
                                 highest_utility = utility
-                                possible_positions = [(new_x, new_y)]
+                                possible_positions = [new_position]
                             elif utility == highest_utility:
-                                possible_positions.append((new_x, new_y))
+                                possible_positions.append(new_position)
 
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
-                if best_position != (current_x, current_y):
-                    pedestrian.x, pedestrian.y = best_position
-                    finished = False
+                pedestrian.x, pedestrian.y = best_position  # Update pedestrian's position
+                finished = False
 
-            if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
+            # Check if pedestrian has reached a target
+            if not (distance_grid[(pedestrian.x, pedestrian.y)] == 0 and self.is_absorbing):
                 active_pedestrians.append(pedestrian)
 
         self.pedestrians = active_pedestrians  # Update the list of active pedestrians
+        self.current_step += 1  # Increment the simulation step
 
-        return finished  # Return true if no pedestrians moved and all are absorbed, indicating the simulation might terminate
+        return finished  # Return True if simulation should terminate
 
     def get_grid(self) -> npt.NDArray[el.ScenarioElement]:
         """Returns a full state grid of the shape (width, height)."""
@@ -191,10 +201,7 @@ class Simulation:
         dict[int, float]
             A dict in the form {measuring_point_id: flow}.
         """
-        flow_data = {}
-        for mp in self.measuring_points:
-            flow_data[mp.ID] = mp.get_mean_flow()
-        return flow_data
+        return {mp.id: mp.get_flow() for mp in self.measuring_points}
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
