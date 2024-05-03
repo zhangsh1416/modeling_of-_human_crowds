@@ -95,6 +95,8 @@ class Simulation:
             np.random.shuffle(self.pedestrians)
 
         finished = True
+        target_positions = {(target.x, target.y) for target in self.targets}
+        new_pedestrians = []
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
@@ -113,18 +115,25 @@ class Simulation:
                         highest_utility = utility_value
                         best_position = pos
 
-                if best_position:
-                    # 清空旧位置
+                if best_position in target_positions and self.is_absorbing:
+                    # If the position is a target and absorbing is true, remove pedestrian from simulation
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
-                    # 更新位置
-                    pedestrian.x, pedestrian.y = best_position
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                    # 减去已用的移动信用
-                    pedestrian.move_credit -= math.floor(pedestrian.move_credit)
+                    pedestrian.move_credit = 0  # Reset move credit since the pedestrian is absorbed
+                elif best_position and (
+                        best_position not in self.occupied_positions or best_position in target_positions):
+                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty  # Clear old position
+                    pedestrian.x, pedestrian.y = best_position  # Update position
+                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian  # Mark new position
+                    pedestrian.move_credit -= math.floor(pedestrian.move_credit)  # Subtract the used move credit
+                    new_pedestrians.append(pedestrian)
+                    finished = False
+                else:
+                    new_pedestrians.append(pedestrian)
                     finished = False
 
-        self.current_step += 1
-        return finished
+                self.pedestrians = new_pedestrians
+                self.current_step += 1
+                return finished
 
     def get_reachable_positions(self, pedestrian, move_credit_floor):
         x_start, y_start = pedestrian.x, pedestrian.y
