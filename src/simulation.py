@@ -42,6 +42,7 @@ class Simulation:
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.target_positions = tuple(self.targets)
         self.distance_to_targets = self._compute_distance_grid(self.target_positions)
+        print(self.distance_to_targets)
 
     def _cost_function(self,r, r_max):
         """
@@ -107,35 +108,35 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
         finished = True
-        active_pedestrians = []
-        for pedestrian in self.pedestrians:
+        pedestrians = self.pedestrians
+        for pedestrian in pedestrians:
             reachable_positions = self.get_reachable_positions(pedestrian, pedestrian.speed)
             highest_utility = -float('inf')
             best_position = None
             target_positions = [(target.x, target.y) for target in self.targets]
             pedestrian_distance = self._compute_pedestrian_grid()
-            utility_grid = self._compute_utility(pedestrian_distance,r_max=5)
+            utility_grid = self._compute_utility(pedestrian_distance,r_max=3)
             for pos in reachable_positions:
                 x, y = pos
                 utility_value = utility_grid[x][y]  # Assuming utility grid is precomputed correctly
                 if utility_value > highest_utility:
                     highest_utility = utility_value
                     best_position = pos
-            if best_position not in target_positions or not self.is_absorbing:
-                self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
+            # update self.pedestrians to protect from overlapping
+            if  best_position not in target_positions:
+                self.pedestrians.remove(pedestrian)
                 pedestrian.x, pedestrian.y = best_position
-                active_pedestrians.append(pedestrian)
                 self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-            elif best_position in target_positions and self.is_absorbing:
-                pedestrian.x, pedestrian.y = best_position
-              # If position is a target, do not add to active_pedestrians, simulating absorption
+                self.pedestrians.append(pedestrian)
                 finished = False
+            elif best_position in target_positions and self.is_absorbing:
+                self.pedestrians.remove(pedestrian)
+                finished = False
+            elif best_position in target_positions and not self.is_absorbing:
+                pass
             else:
-                active_pedestrians.append(pedestrian)  # No movement but still active
-
-        self.pedestrians = active_pedestrians
+                pass  # No movement but still active
         self.current_step += 1
-
         return finished
 
     def get_reachable_positions(self, pedestrian, speed):
