@@ -31,6 +31,7 @@ class Simulation:
         self.distance_computation = config.distance_computation
         self.measuring_points = config.measuring_points  # Assuming this is provided by the configuration
         self.current_step = 0  # Initialize current_step attribute
+        self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
 
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
@@ -201,15 +202,21 @@ class Simulation:
         return distance_grid
 
     def get_measured_flows(self) -> dict[int, float]:
-        """Returns a map of measuring points' ids to their flows.
+        """Returns a map of measuring points' ids to their flows (mean speeds).
 
         Returns:
         --------
         dict[int, float]
-            A dict in the form {measuring_point_id: flow}.
+            A dict in the form {measuring_point_id: mean_flow}.
         """
-        return {mp.ID: mp.get_flow() for mp in self.measuring_points}
+        mean_flows = {}
+        for mp_id, speeds in self.measuring_point_data.items():
+            if speeds:  # Ensure there are speeds recorded to avoid division by zero
+                mean_flows[mp_id] = sum(speeds) / len(speeds)
+            else:
+                mean_flows[mp_id] = 0.0  # No pedestrian passed through this point
 
+        return mean_flows
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
