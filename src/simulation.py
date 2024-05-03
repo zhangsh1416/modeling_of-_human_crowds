@@ -110,28 +110,27 @@ class Simulation:
 
         finished = True
         active_pedestrians = []
-
         for pedestrian in self.pedestrians:
             reachable_positions = self.get_reachable_positions(pedestrian, pedestrian.speed)
             highest_utility = -float('inf')
             best_position = None
             target_positions = [(target.x, target.y) for target in self.targets]
             pedestrian_distance = self._compute_pedestrian_grid()
-            utility_grid = self._compute_utility(pedestrian_distance,r_max=3)
+            utility_grid = self._compute_utility(pedestrian_distance,r_max=5)
             for pos in reachable_positions:
                 x, y = pos
                 utility_value = utility_grid[x][y]  # Assuming utility grid is precomputed correctly
                 if utility_value > highest_utility:
                     highest_utility = utility_value
                     best_position = pos
-
-            if best_position not in target_positions:
+            if best_position not in target_positions or not self.is_absorbing:
+                self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
                 pedestrian.x, pedestrian.y = best_position
                 active_pedestrians.append(pedestrian)
                 self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-            elif best_position in target_positions:
+            elif best_position in target_positions and self.is_absorbing:
                 pedestrian.x, pedestrian.y = best_position
-                # If position is a target, do not add to active_pedestrians, simulating absorption
+              # If position is a target, do not add to active_pedestrians, simulating absorption
                 finished = False
             else:
                 active_pedestrians.append(pedestrian)  # No movement but still active
