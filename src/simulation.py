@@ -135,12 +135,14 @@ class Simulation:
                 for dy in range(-pedestrian.speed, pedestrian.speed + 1):
                     new_x, new_y = current_x + dx, current_y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        utility = self.compute_utility(pedestrian, (new_x, new_y), distance_grid, pedestrian_grid)
-                        if utility > highest_utility:
-                            highest_utility = utility
-                            possible_positions = [(new_x, new_y)]
-                        elif utility == highest_utility:
-                            possible_positions.append((new_x, new_y))
+                        if self.grid[
+                            new_x, new_y] != el.ScenarioElement.obstacle:  # Check if the new position is not an obstacle
+                            utility = self.compute_utility(pedestrian, (new_x, new_y), distance_grid, pedestrian_grid)
+                            if utility > highest_utility:
+                                highest_utility = utility
+                                possible_positions = [(new_x, new_y)]
+                            elif utility == highest_utility:
+                                possible_positions.append((new_x, new_y))
 
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
