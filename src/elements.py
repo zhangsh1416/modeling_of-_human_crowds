@@ -42,6 +42,7 @@ class Pedestrian(utils.Position):
     y: int
     speed: float
     took_steps: int | None = None
+    accumulated_distance = 0.0  # Initialize the accumulated distance
 
     def get_position(self):
         return utils.Position(self.x, self.y)

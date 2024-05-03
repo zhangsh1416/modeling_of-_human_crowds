@@ -107,7 +107,6 @@ class Simulation:
 
         if perturb:
             np.random.shuffle(self.pedestrians)
-
         finished = True
         active_pedestrians = []
         for pedestrian in self.pedestrians:
@@ -145,7 +144,6 @@ class Simulation:
         x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
         speed = math.ceil(speed)
-
         # Update occupied positions to consider current pedestrians and obstacles.
         occupied_positions = set((p.x, p.y) for p in self.pedestrians if p != pedestrian)
         occupied_positions.update(self.occupied_positions)
@@ -259,30 +257,34 @@ class Simulation:
         return distances
 
     def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable."""
+        """Computes the distance grid using a simplified version of Dijkstra's algorithm, considering obstacles as impassable."""
         distances = np.full((self.width, self.height), np.inf)  # Initialize distances to infinity
         obstacles = self.grid == el.ScenarioElement.obstacle  # Identify obstacle locations
 
-        pq = queue.PriorityQueue()
+        available_positions = []
         for target in targets:
             x, y = target.x, target.y
             if not obstacles[x, y]:  # Ensure target is not an obstacle
                 distances[x, y] = 0
-                pq.put((0, (x, y)))
+                # Expanding from each target, add accessible neighbors
+                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
+                        available_positions.append((nx, ny))
+                        distances[nx, ny] = 1  # Start with distance of 1 from each target
 
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        while not pq.empty():
-            current_distance, (x, y) = pq.get()
-            if current_distance > distances[x, y]:  # Check if a shorter path to (x, y) has been found
-                continue
-
-            for dx, dy in directions:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
-                    new_distance = current_distance + 1  # Step cost is 1
-                    if new_distance < distances[nx, ny]:
-                        distances[nx, ny] = new_distance
-                        pq.put((new_distance, (nx, ny)))
+        # Process each layer of accessible positions
+        while available_positions:
+            next_open_positions = []
+            for x, y in available_positions:
+                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
+                        new_distance = distances[x, y] + 1
+                        if new_distance < distances[nx, ny]:
+                            distances[nx, ny] = new_distance
+                            next_open_positions.append((nx, ny))
+            available_positions = next_open_positions
 
         return distances
 
