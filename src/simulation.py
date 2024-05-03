@@ -32,27 +32,47 @@ class Simulation:
         self.measuring_points = config.measuring_points  # Assuming this is provided by the configuration
         self.current_step = 0  # Initialize current_step attribute
         self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
+        self.occupied_positions = set()
 
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
         for obstacle in self.obstacles:
             self.grid[obstacle.x, obstacle.y] = el.ScenarioElement.obstacle
+            self.occupied_positions.add((obstacle.x, obstacle.y))
         np.random.seed(random_seed)
+        # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
+        self.target_positions = tuple(self.targets)
+        self.distance_to_targets = self._compute_distance_grid(self.target_positions)
 
-    def cost_function(r, r_max):
-        if r < r_max:
-            return np.exp(1 / (r ** 2 - r_max ** 2))
-        else:
-            return 0
+    def _cost_function(self,r, r_max):
+        """
+        Compute a cost function over a grid based on the distance to the nearest pedestrian,
+        applying an exponential decay effect that diminishes beyond r_max.
+
+        Args:
+        r (np.ndarray): A 2D array of distances to the nearest pedestrian.
+        r_max (float): The maximum effective distance for the cost calculation.
+
+        Returns:
+        np.ndarray: A 2D array of costs, where each element is calculated based on the proximity to the nearest pedestrian.
+        """
+        # Apply cost function only where the distance is less than r_max
+        # and avoid division by zero or negative square root by ensuring r^2 - r_max^2 is positive
+        mask = r < r_max
+        safe_r = np.where(mask, r, r_max - 1e-10)  # Use r_max where r >= r_max to avoid negative under the square root
+        cost = np.where(mask, np.exp(1 / (safe_r ** 2 - r_max ** 2)), 0)
+
+        return cost
 
     def _compute_pedestrian_grid(self) -> npt.NDArray[np.float64]:
         """Computes a grid with distances to the closest pedestrian."""
         pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians]
         pedestrian_positions = np.array(pedestrian_positions)
+        pedestrian_positions = tuple(pedestrian_positions)
         pedestrian_distances = self._compute_naive_distance_grid(pedestrian_positions)
         return pedestrian_distances
 
-    def compute_utility(self, pedestrian, new_position, distance_to_target_grid, pedestrian_grid):
+    def _compute_utility(self, pedestrian_grid, r_max):
         """
         Calculate the utility for a given position based on distance to target and interaction with other pedestrians.
 
@@ -65,32 +85,8 @@ class Simulation:
         Returns:
         Utility value for the new position.
         """
-        x, y = new_position
-
-        # If the position is outside the grid bounds, return a very low utility
-        if not (0 <= x < distance_to_target_grid.shape[0] and 0 <= y < distance_to_target_grid.shape[1]):
-            return -float('inf')
-
-        # Distance to target cost
-        distance_to_target = distance_to_target_grid[x, y]
-
-        # Interaction cost with other pedestrians (can be refined based on specific requirements)
-        interaction_cost = 0
-        r_max = 2  # hypothetical max interaction radius
-
-        for other in self.pedestrians:
-            if other != pedestrian:
-                other_x, other_y = other.x, other.y
-                # Check if other pedestrian is close enough to consider for interaction cost
-                if abs(other_x - x) <= r_max and abs(other_y - y) <= r_max:
-                    dist_to_other = np.hypot(x - other_x, y - other_y)
-                    if dist_to_other < r_max:
-                        interaction_cost += np.exp(1 / (dist_to_other ** 2 - r_max ** 2))
-
-        # Calculate the total utility
-        utility = -distance_to_target - interaction_cost
+        utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
         return utility
-
     def update(self, perturb: bool = True) -> bool:
 
         """Performs one step of the simulation.
@@ -112,62 +108,55 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
 
-            # 重置网格和初始化被占据位置集合
-        self.grid = np.full((self.width, self.height), el.ScenarioElement.empty)
-        occupied_positions = set()
-
-        # 重新标记障碍物和目标
-        for obstacle in self.obstacles:
-            self.grid[obstacle.x, obstacle.y] = el.ScenarioElement.obstacle
-        for target in self.targets:
-            self.grid[target.x, target.y] = el.ScenarioElement.target
-
         finished = True
         active_pedestrians = []
 
         for pedestrian in self.pedestrians:
-            current_position = (pedestrian.x, pedestrian.y)
-            reachable_positions = self.get_reachable_positions(pedestrian, pedestrian.speed, occupied_positions)
-
+            reachable_positions = self.get_reachable_positions(pedestrian, pedestrian.speed)
             highest_utility = -float('inf')
             best_position = None
-
+            target_positions = [(target.x, target.y) for target in self.targets]
+            pedestrian_distance = self._compute_pedestrian_grid()
+            utility_grid = self._compute_utility(pedestrian_distance,r_max=3)
             for pos in reachable_positions:
-                utility = self.compute_utility(pedestrian, pos, self.get_distance_grid(),
-                                               self._compute_pedestrian_grid())
-                if utility > highest_utility:
-                    highest_utility = utility
+                x, y = pos
+                utility_value = utility_grid[x][y]  # Assuming utility grid is precomputed correctly
+                if utility_value > highest_utility:
+                    highest_utility = utility_value
                     best_position = pos
 
-            if best_position and self.grid[best_position[0], best_position[1]] == el.ScenarioElement.target:
-                # 如果行人移动到目标位置，则被吸收，不再加入到active_pedestrians
+            if best_position not in target_positions:
+                pedestrian.x, pedestrian.y = best_position
+                active_pedestrians.append(pedestrian)
+                self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+            elif best_position in target_positions:
+                pedestrian.x, pedestrian.y = best_position
+                # If position is a target, do not add to active_pedestrians, simulating absorption
                 finished = False
             else:
-                if best_position:
-                    pedestrian.x, pedestrian.y = best_position
-                    active_pedestrians.append(pedestrian)  # 更新位置
-                    occupied_positions.add(best_position)
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                else:
-                    # 如果没有更好的位置，行人保持当前位置
-                    active_pedestrians.append(pedestrian)
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                active_pedestrians.append(pedestrian)  # No movement but still active
 
-        self.pedestrians = active_pedestrians  # 更新活动行人列表
+        self.pedestrians = active_pedestrians
         self.current_step += 1
+
         return finished
 
-    def get_reachable_positions(self, pedestrian, speed, occupied_positions):
-        reachable_positions = []
+    def get_reachable_positions(self, pedestrian, speed):
+        """Calculate reachable positions for a pedestrian considering their speed, other pedestrians, and obstacles."""
         x_start, y_start = pedestrian.x, pedestrian.y
+        reachable_positions = []
 
+        # Update occupied positions to consider current pedestrians and obstacles.
+        occupied_positions = set((p.x, p.y) for p in self.pedestrians if p != pedestrian)
+        occupied_positions.update(self.occupied_positions)
+
+        # Check all cells within the movement radius defined by speed
         for dx in range(-speed, speed + 1):
             for dy in range(-speed, speed + 1):
-                if dx ** 2 + dy ** 2 <= speed ** 2:  # 欧式距离的平方不超过速度的平方
+                if dx ** 2 + dy ** 2 <= speed ** 2:  # Check within circular movement range
                     new_x, new_y = x_start + dx, y_start + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if self.grid[new_x, new_y] != el.ScenarioElement.obstacle and (
-                        new_x, new_y) not in occupied_positions:
+                        if (new_x, new_y) not in occupied_positions:
                             reachable_positions.append((new_x, new_y))
         return reachable_positions
 
