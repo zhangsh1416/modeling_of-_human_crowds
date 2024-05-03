@@ -126,7 +126,7 @@ class Simulation:
 
         self.current_step += 1
         return finished
-
+    # 输入单个pedestrian，根据累计credit来计算所有可能的cells
     def get_reachable_positions(self, pedestrian):
         move_credit_floor = math.floor(pedestrian.move_credit)
         x_start, y_start = pedestrian.x, pedestrian.y
@@ -138,8 +138,16 @@ class Simulation:
                     new_x, new_y = x_start + dx, y_start + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
                         if (new_x, new_y) not in self.occupied_positions:
-                            reachable_positions.append((new_x, new_y))
+                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
+                                 reachable_positions.append((new_x, new_y))
         return reachable_positions
+
+    def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
+        # This function checks if any pedestrian other than the one passed as argument occupies the position (x, y)
+        for ped in self.pedestrians:
+            if ped != pedestrian and ped.x == x and ped.y == y:
+                return True
+        return False
 
     def get_grid(self) -> npt.NDArray[el.ScenarioElement]:
         """Returns a full state grid of the shape (width, height)."""
