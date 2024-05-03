@@ -90,6 +90,15 @@ class Simulation:
         utility = -distance_to_target - interaction_cost
         return utility
 
+    def is_within_bounds(self, measuring_point, position):
+        """Check if a position is within the bounds defined by a measuring point."""
+        upper_left = measuring_point.upper_left
+        lower_right_x = upper_left.x + measuring_point.size.width
+        lower_right_y = upper_left.y + measuring_point.size.height
+
+        return (upper_left.x <= position.x < lower_right_x and
+                upper_left.y <= position.y < lower_right_y)
+
     def update(self, perturb: bool = True) -> bool:
 
         """Performs one step of the simulation.
@@ -111,24 +120,21 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
 
-        distance_grid = self.get_distance_grid()  # Calculate distances considering obstacles
-        pedestrian_grid = self._compute_pedestrian_grid()  # Track current positions of pedestrians
-
-        current_step = self.current_step  # Assumes there is a self.current_step attribute tracking the simulation steps
-        finished = True  # Assume all pedestrians are finished unless proven otherwise
-        active_pedestrians = []  # List to keep track of active pedestrians after this update
+        distance_grid = self.get_distance_grid()
+        pedestrian_grid = self._compute_pedestrian_grid()
+        finished = True
+        active_pedestrians = []
 
         for pedestrian in self.pedestrians:
-            current_position = (pedestrian.x, pedestrian.y)
+            current_position = utils.Position(pedestrian.x, pedestrian.y)
 
-            # Check and record pedestrian data at measuring points if in measuring period
             for mp in self.measuring_points:
-                if current_step >= mp.delay and current_step < mp.delay + mp.measuring_time:
-                    if mp.is_within_bounds(pedestrian.position):
+                if self.current_step >= mp.delay and self.current_step < mp.delay + mp.measuring_time:
+                    if self.is_within_bounds(mp, current_position):
                         mp.record_pedestrian(pedestrian.speed)
 
             # Move pedestrians if they have not reached their target
-            if distance_grid[current_position] == 0:
+            if distance_grid[current_position.x, current_position.y] == 0:
                 if self.is_absorbing:
                     continue  # If the target is absorbing, do not add this pedestrian to the active list
                 else:
