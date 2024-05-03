@@ -4,7 +4,7 @@ import numpy.typing as npt
 
 from src import elements as el, utils
 import queue
-
+import math
 
 class Simulation:
     """A class to simulate pedestrian movement in a grid environment."""
@@ -144,6 +144,7 @@ class Simulation:
         """Calculate reachable positions for a pedestrian considering their speed, other pedestrians, and obstacles."""
         x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
+        speed = math.ceil(speed)
 
         # Update occupied positions to consider current pedestrians and obstacles.
         occupied_positions = set((p.x, p.y) for p in self.pedestrians if p != pedestrian)
