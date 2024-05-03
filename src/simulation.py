@@ -112,39 +112,40 @@ class Simulation:
         if perturb:
             np.random.shuffle(self.pedestrians)
 
-            # Assume get_distance_grid and _compute_pedestrian_grid are defined elsewhere
-        distance_grid = self.get_distance_grid()
-        pedestrian_grid = self._compute_pedestrian_grid()
+        distance_grid = self.get_distance_grid()  # Computes distance to targets considering obstacles
+        pedestrian_grid = self._compute_pedestrian_grid()  # Grid of distances to nearest pedestrian
         finished = True
         active_pedestrians = []
+        occupied_positions = set()  # To prevent overlapping
 
         for pedestrian in self.pedestrians:
             current_position = utils.Position(pedestrian.x, pedestrian.y)
 
-            # Check active period and spatial bounds for each measuring point
+            # Check and record at measuring points
             for mp in self.measuring_points:
                 if self.current_step >= mp.delay and self.current_step < mp.delay + mp.measuring_time:
                     if self.is_within_bounds(mp, current_position):
-                        # Append speed to a list indexed by Measuring Point ID
+                        if mp.ID not in self.measuring_point_data:
+                            self.measuring_point_data[mp.ID] = []
                         self.measuring_point_data[mp.ID].append(pedestrian.speed)
 
-            # Move pedestrians if they have not reached their target
+            # Check if pedestrian reaches a target
             if distance_grid[current_position.x, current_position.y] == 0:
                 if self.is_absorbing:
-                    continue
+                    continue  # Skip moving this pedestrian
                 else:
-                    active_pedestrians.append(pedestrian)  # Pedestrian remains active but doesn't move
+                    active_pedestrians.append(pedestrian)
                     continue
 
             possible_positions = []
             highest_utility = -float('inf')
 
-            # Evaluate potential new positions based on utility
             for dx in range(-pedestrian.speed, pedestrian.speed + 1):
                 for dy in range(-pedestrian.speed, pedestrian.speed + 1):
                     new_x, new_y = pedestrian.x + dx, pedestrian.y + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if self.grid[new_x, new_y] != el.ScenarioElement.obstacle:
+                        if self.grid[new_x, new_y] != el.ScenarioElement.obstacle and (
+                        new_x, new_y) not in occupied_positions:
                             new_position = (new_x, new_y)
                             utility = self.compute_utility(pedestrian, new_position, distance_grid, pedestrian_grid)
                             if utility > highest_utility:
@@ -156,13 +157,14 @@ class Simulation:
             if possible_positions:
                 best_position = possible_positions[np.random.randint(len(possible_positions))]
                 pedestrian.x, pedestrian.y = best_position
+                occupied_positions.add(best_position)
                 finished = False
 
             if not (distance_grid[pedestrian.x, pedestrian.y] == 0 and self.is_absorbing):
                 active_pedestrians.append(pedestrian)
 
         self.pedestrians = active_pedestrians
-        self.current_step += 1  # Increment the simulation step
+        self.current_step += 1
 
         return finished
 
