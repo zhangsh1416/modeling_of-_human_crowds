@@ -208,7 +208,7 @@ class Simulation:
         dict[int, float]
             A dict in the form {measuring_point_id: flow}.
         """
-        return {mp.id: mp.get_flow() for mp in self.measuring_points}
+        return {mp.ID: mp.get_flow() for mp in self.measuring_points}
 
 
     def _compute_distance_grid(
