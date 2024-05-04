@@ -32,7 +32,7 @@ class Simulation:
         self.current_step = 0  # Initialize current_step attribute
         self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
         self.occupied_positions = set()
-
+        self.targets_list = [(pos.x, pos.y) for pos in self.targets]
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
         for obstacle in self.obstacles:
@@ -40,9 +40,8 @@ class Simulation:
             self.occupied_positions.add((obstacle.x, obstacle.y))
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
-        self.target_positions = tuple(self.targets)
-        self.distance_to_targets = self._compute_distance_grid(self.target_positions)
-        # print(self.distance_to_targets)
+        self.distance_to_targets = self._compute_distance_grid(self.targets)
+        #print(self.is_absorbing)
 
     def _cost_function(self,r, r_max):
         """
@@ -108,21 +107,31 @@ class Simulation:
 
                 for pos in reachable_positions:
                     x, y = pos
-                    utility_value = utility_values[x][y]  # 假设已预先计算好
+                    utility_value = utility_values[x][y]
                     if utility_value > highest_utility:
                         highest_utility = utility_value
                         best_position = pos
+                moving_distance = math.sqrt(
+                    (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
 
-                if best_position:
-                    # 清空旧位置
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
-                    moving_distance = math.sqrt((pedestrian.x-best_position[0])**2 + (pedestrian.y-best_position[1])**2)
-                    # 更新位置
+                if best_position in self.targets_list:
+                    if self.is_absorbing:
+                        # 吸收型目标，行人到达后被移除
+                        self.pedestrians.remove(pedestrian)
+                        finished = True
+                    else:
+                        # 非吸收型目标，行人到达但不被移除
+                        pedestrian.x, pedestrian.y = best_position
+                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                        pedestrian.move_credit -= moving_distance
+                        finished = True
+                else:
+                    # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                    # 减去已用的移动信用
                     pedestrian.move_credit -= moving_distance
-                    finished = False
+                    finished = True
+
 
         self.current_step += 1
         return finished
