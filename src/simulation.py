@@ -258,47 +258,33 @@ class Simulation:
         return distances
 
     def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable.
-        Each cell's distance is initialized to infinity unless it is a target. If a cell is an obstacle,
-        or it is unreachable from any target, its distance remains infinity."""
-        # Initialize the distance grid with infinity values
-        distances = np.full((self.width, self.height), np.inf)
-        # Determine obstacle locations in the grid
-        obstacles = self.grid == el.ScenarioElement.obstacle
+        if not targets:  # 如果没有目标，则所有距离保持无穷大
+            return np.full((self.width, self.height), np.inf)
 
-        # Priority queue to manage cells by distance
+        distances = np.full((self.width, self.height), np.inf)
+        obstacles = self.grid == el.ScenarioElement.obstacle
         pq = queue.PriorityQueue()
 
-        # Initialize the queue with target positions at distance 0
         for target in targets:
             x, y = target.x, target.y
-            if not obstacles[x, y]:  # Only proceed if the target is not an obstacle
+            if not obstacles[x, y]:
                 distances[x, y] = 0
                 pq.put((0, (x, y)))
 
-        # Define relative positions for neighbor cells (N, E, S, W)
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-
-        # Process the queue
         while not pq.empty():
             current_distance, (x, y) = pq.get()
-
-            # Skip processing if we find a shorter path already processed
             if current_distance > distances[x, y]:
                 continue
 
-            # Check each neighbor of the current cell
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
-                # Ensure the neighbor is within bounds and is not an obstacle
                 if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
-                    new_distance = current_distance + 1  # Assuming uniform cost for simplicity
-                    # Update the neighbor's distance if a shorter path is found
+                    new_distance = current_distance + 1
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance
                         pq.put((new_distance, (nx, ny)))
 
-        # The distances grid is returned, where unreachable and obstacle cells remain infinity
         return distances
 
     def _get_neighbors(
