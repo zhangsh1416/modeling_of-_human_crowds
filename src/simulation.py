@@ -41,7 +41,7 @@ class Simulation:
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
-        #print(self.targets)
+        print(self.targets)
         #print(self.is_absorbing)
 
     def _cost_function(self,r, r_max):
@@ -95,7 +95,6 @@ class Simulation:
             np.random.shuffle(self.pedestrians)
 
         finished = True
-        targets = [(pos.x, pos.y) for pos in self.targets]
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
@@ -117,20 +116,24 @@ class Simulation:
                 moving_distance = math.sqrt(
                     (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
 
-                if best_position in targets:
+                if best_position in self.targets:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
                         finished = True
                     else:
                         # 非吸收型目标，行人到达但不被移除
+                        pedestrian.x, pedestrian.y = best_position
+                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                        pedestrian.move_credit -= moving_distance
                         finished = True
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
-                    finished = False
+                    finished = True
+
         self.current_step += 1
         return finished
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
