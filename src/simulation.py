@@ -120,19 +120,13 @@ class Simulation:
                         self.pedestrians.remove(pedestrian)
                         finished = True
                     else:
-                        # 非吸收型目标，行人到达但不被移除
-                        pedestrian.x, pedestrian.y = best_position
-                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                        pedestrian.move_credit -= moving_distance
-                        finished = True
+                        pass
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
                     finished = True
-
-
         self.current_step += 1
         return finished
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
