@@ -32,6 +32,7 @@ class Simulation:
         self.current_step = 0  # Initialize current_step attribute
         self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
         self.occupied_positions = set()
+        self.targets_list = [(pos.x, pos.y) for pos in self.targets]
 
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
@@ -116,7 +117,7 @@ class Simulation:
                 moving_distance = math.sqrt(
                     (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
 
-                if best_position in self.targets:
+                if best_position in self.targets_list:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
@@ -133,8 +134,6 @@ class Simulation:
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
                     finished = True
-
-
         self.current_step += 1
         return finished
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
