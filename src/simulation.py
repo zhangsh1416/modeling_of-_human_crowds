@@ -72,6 +72,7 @@ class Simulation:
         pedestrian_positions = np.array(pedestrian_positions)
         pedestrian_positions = tuple(pedestrian_positions)
         pedestrian_distances = self._compute_naive_distance_grid(pedestrian_positions)
+        #print(pedestrian_distances)
         return pedestrian_distances
 
     def _compute_utility(self, pedestrian_grid, r_max):
@@ -87,7 +88,8 @@ class Simulation:
         Returns:
         Utility value for the new position.
         """
-        utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
+        cost = self._cost_function(pedestrian_grid,r_max)
+        utility = -self.distance_to_targets - cost
         return utility
 
     def update(self, perturb: bool = True) -> bool:
@@ -104,19 +106,20 @@ class Simulation:
 
             # 如果移动信用大于或等于1，则尝试移动行人
             while pedestrian.move_credit >= 1:
+                pedestrian_distance = self._compute_pedestrian_grid()
                 neighbours = self._get_neighbors((pedestrian.x,pedestrian.y))
                 reachable_positions = self.get_reachable_positions(pedestrian,neighbours)
                 highest_utility = -float('inf')
                 best_position = (0,0)
-                utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
-                print(reachable_positions)
+                utility_values = self._compute_utility(pedestrian_distance,r_max=5)
+               # print(reachable_positions)
                 if not reachable_positions:
                     break
                 if reachable_positions:
                     for pos in reachable_positions:
                         x, y = pos
                         utility_value = utility_values[x][y]
-                        print(utility_value)
+                        #print(utility_value)
                         if utility_value > highest_utility:
                             highest_utility = utility_value
                             best_position = pos
@@ -254,6 +257,7 @@ class Simulation:
         # now, compute the minimum over all distances to all targets.
         distances = np.min(distances, axis=0)
         distances = distances.reshape((self.height, self.width)).T
+        print("naive")
 
         return distances
 
@@ -299,6 +303,7 @@ class Simulation:
                         pq.put((new_distance, (nx, ny)))
 
         # The distances grid is returned, where unreachable and obstacle cells remain infinity
+        print("dijkstra")
         return distances
 
     def _get_neighbors(

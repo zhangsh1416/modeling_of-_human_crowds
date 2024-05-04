@@ -191,7 +191,7 @@ def task_4(filename: str):
     n_pedestrians = 50
     hor_span = (6, 13)
     vert_span = (6, 24)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.1,4))
+    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,5))
 
     # Set the target at the exit in Room 2
     targets = [{"x": 68, "y": y} for y in range(17, 19)]
@@ -207,7 +207,7 @@ def task_4(filename: str):
         tuple(obstacles),
         tuple(pedestrians),
         is_absorbing=True,
-        distance_computation="dijkstra",
+        distance_computation="naive",
         output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
     )
 
@@ -252,10 +252,42 @@ def task_4_chicken_test(filename: str):
         output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
     )
 
+def rimea_1():
+
+    # Obstacle setup: walls around the rooms and the corridor
+    obstacles = (
+            get_horizontal_object(5, 105, 4) +  # Top wall of Room 1
+            get_horizontal_object(5, 105, 10)  # Bottom wall of Room 1
+    )
+
+    n_pedestrians = 1
+    hor_span = (5, 5)
+    vert_span = (8, 8)
+    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3.0875, 3.49125))
+
+    # Set the target at the exit in Room 2
+    targets = [{"x": 105, "y": y} for y in range(5, 10)]
+
+    # Save configuration to JSON
+    config_filename = os.path.join(CONFIG_FOLDER, "rimea_1.json")
+    print(config_filename)
+    save_json(
+        config_filename,
+        {"width": 110, "height": 20},
+        tuple(targets),
+        tuple([]),
+        tuple(obstacles),
+        tuple(pedestrians),
+        is_absorbing=True,
+        distance_computation="naive",
+        output_filename=os.path.join(OUTPUT_FOLDER, "rimea_1.csv"),
+    )
+
 
 # TODO: create configs for other tasks.
 
 if __name__ == "__main__":
 #  task_1("toy_example")
   #  task_4("task_4")
-  task_4_chicken_test("task_4_chicken_test")
+   # task_4_chicken_test("task_4_chicken_test")
+    rimea_1()
