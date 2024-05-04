@@ -4,7 +4,7 @@ import numpy.typing as npt
 from src import elements as el, utils
 import queue
 import math
-
+from heapq import heappush, heappop
 class Simulation:
     """A class to simulate pedestrian movement in a grid environment."""
 
@@ -257,25 +257,28 @@ class Simulation:
 
         return distances
 
+    from heapq import heappush, heappop
+
     def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        if not targets:  # 如果没有目标，则所有距离保持无穷大
+        if not targets:
             return np.full((self.width, self.height), np.inf)
 
         distances = np.full((self.width, self.height), np.inf)
         obstacles = self.grid == el.ScenarioElement.obstacle
-        pq = queue.PriorityQueue()
+        pq = []
+        visited = set()
 
         for target in targets:
             x, y = target.x, target.y
             if not obstacles[x, y]:
                 distances[x, y] = 0
-                pq.put((0, (x, y)))
+                heappush(pq, (0, (x, y)))
+                visited.add((x, y))
 
         directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
-        while not pq.empty():
-            current_distance, (x, y) = pq.get()
-            if current_distance > distances[x, y]:
-                continue
+
+        while pq:
+            current_distance, (x, y) = heappop(pq)
 
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
@@ -283,7 +286,9 @@ class Simulation:
                     new_distance = current_distance + 1
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance
-                        pq.put((new_distance, (nx, ny)))
+                        if (nx, ny) not in visited:
+                            heappush(pq, (new_distance, (nx, ny)))
+                            visited.add((nx, ny))
 
         return distances
 
