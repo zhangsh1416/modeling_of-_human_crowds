@@ -103,23 +103,19 @@ class Simulation:
             pedestrian.move_credit += pedestrian.speed
 
             # 如果移动信用大于或等于1，则尝试移动行人
-            while pedestrian.move_credit >= 1:
-                neighbours = self._get_neighbors((pedestrian.x,pedestrian.y))
-                reachable_positions = self.get_reachable_positions(pedestrian,neighbours)
+            if pedestrian.move_credit >= 1:
+                reachable_positions = self.get_reachable_positions(pedestrian)
                 highest_utility = -float('inf')
                 best_position = (0,0)
                 utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
-                print(reachable_positions)
-                if not reachable_positions:
-                    break
-                if reachable_positions:
-                    for pos in reachable_positions:
-                        x, y = pos
-                        utility_value = utility_values[x][y]
-                        print(utility_value)
-                        if utility_value > highest_utility:
-                            highest_utility = utility_value
-                            best_position = pos
+
+                for pos in reachable_positions:
+                    x, y = pos
+                    utility_value = utility_values[x][y]
+                    if utility_value > highest_utility:
+                        highest_utility = utility_value
+                        best_position = pos
+
                 moving_distance = math.sqrt(
                     (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
 
@@ -127,29 +123,32 @@ class Simulation:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
-                        pedestrian.move_credit == 0
-                        break
                         finished = True
                     else:
                         # 非吸收型目标，行人到达但不被移除
-                        break
                         finished = True
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
-                    finished = False
+                    finished = True
         self.current_step += 1
         return finished
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
-    def get_reachable_positions(self,pedestrian, neighbours):
+    def get_reachable_positions(self, pedestrian):
+        move_credit_floor = math.floor(pedestrian.move_credit)
+        x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
-        for neighbour in neighbours:
-            pos_tuple = (neighbour.x, neighbour.y)
-            if pos_tuple not in self.occupied_positions:
-             if not self.is_position_occupied_by_other_pedestrian(neighbour.x, neighbour.y, pedestrian):
-              reachable_positions.append(pos_tuple)
+        # 使用 move_credit_floor 确定行人这一步可以移动的最远距离
+        for dx in range(-move_credit_floor, move_credit_floor + 1):
+            for dy in range(-move_credit_floor, move_credit_floor + 1):
+                if dx ** 2 + dy ** 2 <= pedestrian.move_credit ** 2:  # 确保在移动半径内
+                    new_x, new_y = x_start + dx, y_start + dy
+                    if 0 <= new_x < self.width and 0 <= new_y < self.height:
+                        if (new_x, new_y) not in self.occupied_positions:
+                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
+                                 reachable_positions.append((new_x, new_y))
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):

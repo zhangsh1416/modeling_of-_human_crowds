@@ -8,6 +8,10 @@ OUTPUT_FOLDER = "outputs"
 
 CELL_SIZE = 0.4
 
+new_root_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 改变当前工作目录
+os.chdir(new_root_directory)
 
 def get_vertical_object(x: int, y_start: int, y_end: int) -> tuple[dict]:
     """Generates a list of positions in the provided vertical range.
@@ -115,6 +119,7 @@ def save_json(
     output_filename: str,
 ):
     """Saves the simulation configuration to a .json file."""
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     config = {
         "grid_size": grid_size,
@@ -154,8 +159,103 @@ def task_1(filename: str):
         distance_computation,
         output_filename,
     )
+def task_4(filename: str):
+
+    # Constants
+    CELL_SIZE = 0.4  # each cell is 0.4 meters
+    WIDTH_ROOM1 = int(10 / CELL_SIZE)
+    HEIGHT_ROOM1 = int(10 / CELL_SIZE)
+    WIDTH_ROOM2 = int(10 / CELL_SIZE)
+    HEIGHT_ROOM2 = int(10 / CELL_SIZE)
+    WIDTH_CORRIDOR = int(1 / CELL_SIZE)
+    HEIGHT_CORRIDOR = int(5 / CELL_SIZE)
+
+    # Obstacle setup: walls around the rooms and the corridor
+    obstacles = (
+        get_horizontal_object(5, 29, 5) +  # Top wall of Room 1
+        get_horizontal_object(5, 29, 30) +  # Bottom wall of Room 1
+        get_vertical_object(5, 6, 29) +  # Left wall of Room 1
+        get_vertical_object(30, 5, 16) +  # Right wall of Room 1
+        get_vertical_object(30, 19, 30) +
+        get_horizontal_object(31,43, 16) +
+        get_horizontal_object(31,43,19) +
+        get_horizontal_object(43,68,5) +  # Top wall of Room 2
+        get_horizontal_object(43,68,30) +  # Bottom wall of Room 2
+        get_vertical_object(43,6,15) +  # Left wall of Room 2
+        get_vertical_object(43,20,29) +
+        get_vertical_object(68,6,16) + # Right wall of Room 2
+        get_vertical_object(68,19,29)
+    )
+
+    # Generate pedestrians in the left quarter of Room 1
+    n_pedestrians = 50
+    hor_span = (6, 13)
+    vert_span = (6, 24)
+    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.1,4))
+
+    # Set the target at the exit in Room 2
+    targets = [{"x": 68, "y": y} for y in range(17, 19)]
+
+    # Save configuration to JSON
+    config_filename = os.path.join(CONFIG_FOLDER, f"{filename}.json")
+    print(config_filename)
+    save_json(
+        config_filename,
+        {"width": 75, "height": 35 },
+        tuple(targets),
+        tuple([]),
+        tuple(obstacles),
+        tuple(pedestrians),
+        is_absorbing=True,
+        distance_computation="dijkstra",
+        output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
+    )
+
+def task_4_chicken_test(filename: str):
+    # Constants
+    CELL_SIZE = 0.4  # each cell is 0.4 meters
+    WIDTH_ROOM1 = int(10 / CELL_SIZE)
+    HEIGHT_ROOM1 = int(10 / CELL_SIZE)
+    WIDTH_ROOM2 = int(10 / CELL_SIZE)
+    HEIGHT_ROOM2 = int(10 / CELL_SIZE)
+    WIDTH_CORRIDOR = int(1 / CELL_SIZE)
+    HEIGHT_CORRIDOR = int(5 / CELL_SIZE)
+
+    # Obstacle setup: walls around the rooms and the corridor
+    obstacles = (
+            get_horizontal_object(5, 29, 5) +
+            get_horizontal_object(5, 29, 30) +
+            get_vertical_object(30, 5, 30)
+    )
+
+    # Generate pedestrians in the left quarter of Room 1
+    n_pedestrians = 50
+    hor_span = (6, 13)
+    vert_span = (6, 24)
+    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,1.5))
+
+    # Set the target at the exit in Room 2
+    targets = [{"x": 35, "y": 18}]
+
+    # Save configuration to JSON
+    config_filename = os.path.join(CONFIG_FOLDER, f"{filename}.json")
+    print(config_filename)
+    save_json(
+        config_filename,
+        {"width": 40, "height": 35},
+        tuple(targets),
+        tuple([]),
+        tuple(obstacles),
+        tuple(pedestrians),
+        is_absorbing=True,
+        distance_computation="dijkstra",
+        output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
+    )
+
 
 # TODO: create configs for other tasks.
 
 if __name__ == "__main__":
-    task_1("toy_example")
+#  task_1("toy_example")
+  #  task_4("task_4")
+  task_4_chicken_test("task_4_chicken_test")
