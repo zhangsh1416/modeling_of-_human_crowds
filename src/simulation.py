@@ -113,7 +113,7 @@ class Simulation:
                     for pos in reachable_positions:
                         x, y = pos
                         utility_value = utility_values[x][y]
-                        print(utility_value)
+                        #print(utility_value)
                         if utility_value > highest_utility:
                             highest_utility = utility_value
                             best_position = pos
@@ -178,7 +178,6 @@ class Simulation:
             # Check if the pedestrian is within grid bounds to avoid out-of-index errors
             if 0 <= pedestrian.x < self.width and 0 <= pedestrian.y < self.height:
                 grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-        # print(self.current_step)
         return grid
 
     def get_distance_grid(self) -> npt.NDArray[np.float64]:

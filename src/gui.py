@@ -163,7 +163,6 @@ class CellularAutomatonGUI:
         """Shows the current state of the simulation on the canvas."""
 
         im = self._simulation_to_image()
-        # We need to resize the grid to the required canvas size.
         im = im.resize(
             (self._canvas_size.width, self._canvas_size.height),
             resample=Image.NONE,
