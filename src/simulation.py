@@ -40,9 +40,6 @@ class Simulation:
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
-        #print(self.targets)
-        #print(self.occupied_positions)
-        #print(self.is_absorbing)
 
     # Continue with your calculation
 
@@ -66,13 +63,12 @@ class Simulation:
 
         return cost
 
-    def _compute_pedestrian_grid(self) -> npt.NDArray[np.float64]:
+    def _compute_pedestrian_grid(self,current_pedestrian) -> npt.NDArray[np.float64]:
         """Computes a grid with distances to the closest pedestrian."""
-        pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians]
+        pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians if pedestrian != current_pedestrian]
         pedestrian_positions = np.array(pedestrian_positions)
         pedestrian_positions = tuple(pedestrian_positions)
         pedestrian_distances = self._compute_naive_distance_grid(pedestrian_positions)
-        #print(pedestrian_distances)
         return pedestrian_distances
 
     def _compute_utility(self, pedestrian_grid, r_max):
@@ -103,45 +99,49 @@ class Simulation:
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
-
             # 如果移动信用大于或等于1，则尝试移动行人
             while pedestrian.move_credit >= 1:
-                pedestrian_distance = self._compute_pedestrian_grid()
+                pedestrian_distance = self._compute_pedestrian_grid(pedestrian)
                 neighbours = self._get_neighbors((pedestrian.x,pedestrian.y))
                 reachable_positions = self.get_reachable_positions(pedestrian,neighbours)
                 highest_utility = -float('inf')
                 best_position = (0,0)
                 utility_values = self._compute_utility(pedestrian_distance,r_max=5)
-               # print(reachable_positions)
                 if not reachable_positions:
                     break
                 if reachable_positions:
                     for pos in reachable_positions:
                         x, y = pos
                         utility_value = utility_values[x][y]
-                        #print(utility_value)
+                        print(utility_value)
                         if utility_value > highest_utility:
+                            highest_utility = utility_value
+                            best_position = pos
+                        if utility_value == highest_utility and (abs(pedestrian.x - x) + abs(pedestrian.y - y) == 1):
                             highest_utility = utility_value
                             best_position = pos
                 moving_distance = math.sqrt(
                     (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
-
+                #print(moving_distance)
                 if best_position in targets:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
-                        pedestrian.move_credit == 0
+                        pedestrian.move_credit = 0
                         break
                         finished = True
                     else:
                         # 非吸收型目标，行人到达但不被移除
                         break
+                        pedestrian.move_credit -= 1
                         finished = True
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
+                    if moving_distance == 0:
+                        pedestrian.move_credit -= pedestrian.speed
                     finished = False
         self.current_step += 1
         return finished
@@ -150,9 +150,11 @@ class Simulation:
         reachable_positions = []
         for neighbour in neighbours:
             pos_tuple = (neighbour.x, neighbour.y)
+            self_position = (pedestrian.x, pedestrian.y)
             if pos_tuple not in self.occupied_positions:
-             if not self.is_position_occupied_by_other_pedestrian(neighbour.x, neighbour.y, pedestrian):
-              reachable_positions.append(pos_tuple)
+              if not self.is_position_occupied_by_other_pedestrian(neighbour.x, neighbour.y, pedestrian):
+                reachable_positions.append(pos_tuple)
+                reachable_positions.append(self_position)
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
@@ -242,7 +244,8 @@ class Simulation:
         npt.NDArray[np.float64]
             An array of distances of the same shape as the main grid.
         """
-
+        if not targets:  # 检查目标列表是否为空
+            return np.full((self.width, self.height), np.inf)  # 返回充满无穷大的数组，或其他合适的默认值
         targets = [[*target] for target in targets]
         targets = np.row_stack(targets)
         x_space = np.arange(0, self.width)
@@ -257,7 +260,7 @@ class Simulation:
         # now, compute the minimum over all distances to all targets.
         distances = np.min(distances, axis=0)
         distances = distances.reshape((self.height, self.width)).T
-        print("naive")
+        #print("naive")
 
         return distances
 
@@ -303,7 +306,7 @@ class Simulation:
                         pq.put((new_distance, (nx, ny)))
 
         # The distances grid is returned, where unreachable and obstacle cells remain infinity
-        print("dijkstra")
+        #print("dijkstra")
         return distances
 
     def _get_neighbors(
