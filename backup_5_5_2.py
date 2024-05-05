@@ -32,7 +32,6 @@ class Simulation:
         self.current_step = 0  # Initialize current_step attribute
         self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
         self.occupied_positions = set()
-
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
         for obstacle in self.obstacles:
@@ -41,8 +40,8 @@ class Simulation:
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
-        print(self.targets)
-        #print(self.is_absorbing)
+
+    # Continue with your calculation
 
     def _cost_function(self,r, r_max):
         """
@@ -64,9 +63,9 @@ class Simulation:
 
         return cost
 
-    def _compute_pedestrian_grid(self) -> npt.NDArray[np.float64]:
+    def _compute_pedestrian_grid(self,current_pedestrian) -> npt.NDArray[np.float64]:
         """Computes a grid with distances to the closest pedestrian."""
-        pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians]
+        pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians if pedestrian != current_pedestrian]
         pedestrian_positions = np.array(pedestrian_positions)
         pedestrian_positions = tuple(pedestrian_positions)
         pedestrian_distances = self._compute_naive_distance_grid(pedestrian_positions)
@@ -85,7 +84,8 @@ class Simulation:
         Returns:
         Utility value for the new position.
         """
-        utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
+        cost = self._cost_function(pedestrian_grid,r_max)
+        utility = -self.distance_to_targets - cost
         return utility
 
     def update(self, perturb: bool = True) -> bool:
@@ -95,61 +95,84 @@ class Simulation:
             np.random.shuffle(self.pedestrians)
 
         finished = True
+        # pedestrian_position = () # initialize a tuple to store position of current pedestrian
+        targets = [(pos.x, pos.y) for pos in self.targets]
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.record_entry(ped, self.current_step)
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
-
             # 如果移动信用大于或等于1，则尝试移动行人
-            if pedestrian.move_credit >= 1:
-                reachable_positions = self.get_reachable_positions(pedestrian)
+            """
+            pedestrian_position = (pedestrian.x, pedestrian.y)
+                       if pedestrian_position in mp1: # mp1 is a list consists of positions[()]
+                m1 == True
+            elif pedestrian_position in mp2:
+                m2 == True
+            elif pedestrian_position in mp3:
+                m3 == True
+            """
+            while pedestrian.move_credit >= 1:
+                pedestrian_distance = self._compute_pedestrian_grid(pedestrian)
+                neighbours = self._get_neighbors((pedestrian.x,pedestrian.y))
+                reachable_positions = self.get_reachable_positions(pedestrian,neighbours)
                 highest_utility = -float('inf')
-                best_position = None
-                utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
-
-                for pos in reachable_positions:
-                    x, y = pos
-                    utility_value = utility_values[x][y]
-                    if utility_value > highest_utility:
-                        highest_utility = utility_value
-                        best_position = pos
-
+                best_position = (0,0)
+                utility_values = self._compute_utility(pedestrian_distance,r_max=2)
+                if not reachable_positions:
+                    break
+                if reachable_positions:
+                    for pos in reachable_positions:
+                        x, y = pos
+                        utility_value = utility_values[x][y]
+                        #print(utility_value)
+                        if utility_value > highest_utility:
+                            highest_utility = utility_value
+                            best_position = pos
+                        if utility_value == highest_utility and (abs(pedestrian.x - x) + abs(pedestrian.y - y) == 1):
+                            highest_utility = utility_value
+                            best_position = pos
                 moving_distance = math.sqrt(
                     (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
-
-                if best_position in self.targets:
+                #print(moving_distance)
+                if best_position in targets:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
+                        pedestrian.move_credit = 0
+                        break
                         finished = True
                     else:
                         # 非吸收型目标，行人到达但不被移除
-                        pedestrian.x, pedestrian.y = best_position
-                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                        pedestrian.move_credit -= moving_distance
+                        break
+                        pedestrian.move_credit -= 1
                         finished = True
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
-                    finished = True
+                    if moving_distance == 0:
+                        pedestrian.move_credit -= pedestrian.speed
+                    finished = False
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.record_exit_and_calculate_speed(ped, self.current_step)
+            mp.calculate_instantaneous_flow(self.current_step)
 
         self.current_step += 1
         return finished
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
-    def get_reachable_positions(self, pedestrian):
-        move_credit_floor = math.floor(pedestrian.move_credit)
-        x_start, y_start = pedestrian.x, pedestrian.y
+    def get_reachable_positions(self,pedestrian, neighbours):
         reachable_positions = []
-        # 使用 move_credit_floor 确定行人这一步可以移动的最远距离
-        for dx in range(-move_credit_floor, move_credit_floor + 1):
-            for dy in range(-move_credit_floor, move_credit_floor + 1):
-                if dx ** 2 + dy ** 2 <= pedestrian.move_credit ** 2:  # 确保在移动半径内
-                    new_x, new_y = x_start + dx, y_start + dy
-                    if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if (new_x, new_y) not in self.occupied_positions:
-                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
-                                 reachable_positions.append((new_x, new_y))
+        for neighbour in neighbours:
+            pos_tuple = (neighbour.x, neighbour.y)
+            self_position = (pedestrian.x, pedestrian.y)
+            if pos_tuple not in self.occupied_positions:
+              if not self.is_position_occupied_by_other_pedestrian(neighbour.x, neighbour.y, pedestrian):
+                reachable_positions.append(pos_tuple)
+                reachable_positions.append(self_position)
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
@@ -173,7 +196,6 @@ class Simulation:
             # Check if the pedestrian is within grid bounds to avoid out-of-index errors
             if 0 <= pedestrian.x < self.width and 0 <= pedestrian.y < self.height:
                 grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-        # print(self.current_step)
         return grid
 
     def get_distance_grid(self) -> npt.NDArray[np.float64]:
@@ -182,23 +204,9 @@ class Simulation:
         # TODO: return a distance grid.
         distance_grid = self._compute_distance_grid(self.targets)
         return distance_grid
-
-    def is_within_bounds(self, mp, position):
-        """Check if a position is within the bounds defined by a measuring point."""
-        upper_left = mp.upper_left
-        lower_right_x = upper_left.x + mp.size.width
-        lower_right_y = upper_left.y + mp.size.height
-        return (upper_left.x <= position.x < lower_right_x and
-                upper_left.y <= position.y < lower_right_y)
-
     def get_measured_flows(self):
-        mean_flows = {}
-        for mp_id, speeds in self.measuring_point_data.items():
-            if speeds:
-                mean_flows[mp_id] = sum(speeds) / len(speeds)
-            else:
-                mean_flows[mp_id] = 0.0
-        return mean_flows
+        mp = {mp.ID: mp.get_average_flow() for mp in self.measuring_points}
+        return mp
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
@@ -239,7 +247,8 @@ class Simulation:
         npt.NDArray[np.float64]
             An array of distances of the same shape as the main grid.
         """
-
+        if not targets:  # 检查目标列表是否为空
+            return np.full((self.width, self.height), np.inf)  # 返回充满无穷大的数组，或其他合适的默认值
         targets = [[*target] for target in targets]
         targets = np.row_stack(targets)
         x_space = np.arange(0, self.width)
@@ -254,6 +263,7 @@ class Simulation:
         # now, compute the minimum over all distances to all targets.
         distances = np.min(distances, axis=0)
         distances = distances.reshape((self.height, self.width)).T
+        #print("naive")
 
         return distances
 
