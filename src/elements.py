@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from src import utils
 from enum import Enum
 import numpy as np
@@ -154,6 +154,36 @@ class MeasuringPoint:
     size: utils.Size
     delay: int
     measuring_time: int
+    pedestrians: dict = field(default_factory=dict)  # Tracks pedestrian data over time
+
+    def update_pedestrian(self, pedestrian: Pedestrian, current_step: int):
+        if current_step >= self.delay and current_step < self.delay + self.measuring_time:
+            if self.is_within_bounds(utils.Position(pedestrian.x, pedestrian.y)):
+                if pedestrian.ID not in self.pedestrians:
+                    # Record the entry of a new pedestrian
+                    self.pedestrians[pedestrian.ID] = {
+                        'entry_step': current_step,
+                        'positions': [(pedestrian.x, pedestrian.y)],
+                        'speeds': [pedestrian.speed]
+                    }
+                else:
+                    # Update position and speed data
+                    self.pedestrians[pedestrian.ID]['positions'].append((pedestrian.x, pedestrian.y))
+                    self.pedestrians[pedestrian.ID]['speeds'].append(pedestrian.speed)
+
+    def calculate_flow(self):
+        # Calculate flow based on the number of unique pedestrian IDs recorded
+        flow_count = len(self.pedestrians)
+        return flow_count
+
+    def get_flow(self):
+        # Directly returns the calculated flow
+        return self.calculate_flow()
+
+    def is_within_bounds(self, position: utils.Position) -> bool:
+        within_x = self.upper_left.x <= position.x < self.upper_left.x + self.size.width
+        within_y = self.upper_left.y <= position.y < self.upper_left.y + self.size.height
+        return within_x and within_y
 
     @classmethod
     def from_dict(cls, config_dict: dict):

@@ -97,6 +97,14 @@ class Simulation:
         finished = True
         # pedestrian_position = () # initialize a tuple to store position of current pedestrian
         targets = [(pos.x, pos.y) for pos in self.targets]
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.update_pedestrian(ped, self.current_step)
+
+            # Check if the measurement period has ended to calculate the flow
+        for mp in self.measuring_points:
+            if self.current_step == mp.delay + mp.measuring_time - 1:
+                print(f"Flow at measuring point {mp.ID}: {mp.calculate_flow()}")
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
@@ -197,23 +205,12 @@ class Simulation:
         # TODO: return a distance grid.
         distance_grid = self._compute_distance_grid(self.targets)
         return distance_grid
-
-    def is_within_bounds(self, mp, position):
-        """Check if a position is within the bounds defined by a measuring point."""
-        upper_left = mp.upper_left
-        lower_right_x = upper_left.x + mp.size.width
-        lower_right_y = upper_left.y + mp.size.height
-        return (upper_left.x <= position.x < lower_right_x and
-                upper_left.y <= position.y < lower_right_y)
-
-    def get_measured_flows(self):
-        mean_flows = {}
-        for mp_id, speeds in self.measuring_point_data.items():
-            if speeds:
-                mean_flows[mp_id] = sum(speeds) / len(speeds)
-            else:
-                mean_flows[mp_id] = 0.0
-        return mean_flows
+    def get_measured_flows(self) -> dict[int, float]:
+        # Collects flows from all measuring points at the end of the simulation
+        flows = {}
+        for mp in self.measuring_points:
+            flows[mp.ID] = mp.get_flow()  # Get the final calculated flow for each measuring point
+        return flows
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]

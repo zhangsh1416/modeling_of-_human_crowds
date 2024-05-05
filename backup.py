@@ -258,7 +258,7 @@ class Simulation:
         return distances
 
     def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm, considering obstacles as impassable.
+        """Computes the distance grid using Dijkstra's algorithm with Euclidean distance, considering obstacles as impassable.
         Each cell's distance is initialized to infinity unless it is a target. If a cell is an obstacle,
         or it is unreachable from any target, its distance remains infinity."""
         # Initialize the distance grid with infinity values
@@ -276,8 +276,8 @@ class Simulation:
                 distances[x, y] = 0
                 pq.put((0, (x, y)))
 
-        # Define relative positions for neighbor cells (N, E, S, W)
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+        # Define relative positions for neighbor cells (N, E, S, W and the diagonals)
+        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
         # Process the queue
         while not pq.empty():
@@ -292,7 +292,9 @@ class Simulation:
                 nx, ny = x + dx, y + dy
                 # Ensure the neighbor is within bounds and is not an obstacle
                 if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
-                    new_distance = current_distance + 1  # Assuming uniform cost for simplicity
+                    # Calculate Euclidean distance for the step
+                    euclidean_distance = math.sqrt(dx ** 2 + dy ** 2)
+                    new_distance = current_distance + euclidean_distance  # Update distance using Euclidean formula
                     # Update the neighbor's distance if a shorter path is found
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance

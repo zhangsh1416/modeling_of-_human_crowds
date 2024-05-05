@@ -288,12 +288,21 @@ def rimea_2():
             get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
     )
 
-    n_pedestrians = 240
+    n_pedestrians = 20
     hor_span = (6, 30)
     vert_span = (5, 24)
     pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3,3.5))
     # Set the target at the exit in Room 2
     targets = [{"x": 255, "y": y} for y in range(5, 25)]
+    mp = [
+        {
+            "ID": 0,
+           "upper_left": {"x": 125, "y": 15},
+            "size": {"width": 5, "height": 5},
+            "delay": 10,
+            "measuring_time": 50
+        }
+    ]
 
     # Save configuration to JSON
     config_filename = os.path.join(CONFIG_FOLDER, "rimea_2.json")
@@ -312,8 +321,8 @@ def rimea_2():
 def rimea_3():
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-            get_horizontal_object(5, 30, 30) +  # Top wall of Room 1
-            get_horizontal_object(5, 36, 36) + # Bottom wall of Room 1
+            get_horizontal_object(0, 30, 30) +  # Top wall of Room 1
+            get_horizontal_object(0, 36, 36) + # Bottom wall of Room 1
             get_vertical_object(30,5,29) +
             get_vertical_object(36,5,35)
     )
