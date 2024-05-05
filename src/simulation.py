@@ -95,6 +95,9 @@ class Simulation:
             np.random.shuffle(self.pedestrians)
 
         finished = True
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.record_entry(ped, self.current_step)
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
@@ -133,6 +136,10 @@ class Simulation:
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
                     finished = True
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.record_exit_and_calculate_speed(ped, self.current_step)
+            mp.calculate_instantaneous_flow(self.current_step)
 
         self.current_step += 1
         return finished
@@ -192,13 +199,8 @@ class Simulation:
                 upper_left.y <= position.y < lower_right_y)
 
     def get_measured_flows(self):
-        mean_flows = {}
-        for mp_id, speeds in self.measuring_point_data.items():
-            if speeds:
-                mean_flows[mp_id] = sum(speeds) / len(speeds)
-            else:
-                mean_flows[mp_id] = 0.0
-        return mean_flows
+        mp = {mp.ID: mp.get_average_flow() for mp in self.measuring_points}
+        return mp
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
