@@ -154,31 +154,39 @@ class MeasuringPoint:
     size: utils.Size
     delay: int
     measuring_time: int
-    pedestrians: dict = field(default_factory=dict)  # Tracks pedestrian data over time
+    pedestrians_in: dict = field(default_factory=dict)  # Tracks pedestrians inside MP at the update start
+    flow_measurements: list = field(default_factory=list)
 
-    def update_pedestrian(self, pedestrian: Pedestrian, current_step: int):
-        if current_step >= self.delay and current_step < self.delay + self.measuring_time:
-            if self.is_within_bounds(utils.Position(pedestrian.x, pedestrian.y)):
-                if pedestrian.ID not in self.pedestrians:
-                    # Record the entry of a new pedestrian
-                    self.pedestrians[pedestrian.ID] = {
-                        'entry_step': current_step,
-                        'positions': [(pedestrian.x, pedestrian.y)],
-                        'speeds': [pedestrian.speed]
-                    }
-                else:
-                    # Update position and speed data
-                    self.pedestrians[pedestrian.ID]['positions'].append((pedestrian.x, pedestrian.y))
-                    self.pedestrians[pedestrian.ID]['speeds'].append(pedestrian.speed)
+    def record_entry(self, pedestrian, step):
+        if self.is_within_bounds(utils.Position(pedestrian.x, pedestrian.y)):
+            self.pedestrians_in[pedestrian.ID] = (step, (pedestrian.x, pedestrian.y))
 
-    def calculate_flow(self):
-        # Calculate flow based on the number of unique pedestrian IDs recorded
-        flow_count = len(self.pedestrians)
-        return flow_count
+    def record_exit_and_calculate_speed(self, pedestrian, step):
+        if pedestrian.ID in self.pedestrians_in:
+            entry_step, entry_pos = self.pedestrians_in[pedestrian.ID]
+            if step > entry_step:  # Ensure at least one step has occurred
+                distance = np.linalg.norm(np.array((pedestrian.x, pedestrian.y)) - np.array(entry_pos))
+                time = step - entry_step
+                speed = distance / time if time > 0 else 0
+                self.pedestrians_in[pedestrian.ID] = (speed, (pedestrian.x, pedestrian.y))
+            else:
+                self.pedestrians_in.pop(pedestrian.ID)
 
-    def get_flow(self):
-        # Directly returns the calculated flow
-        return self.calculate_flow()
+    def calculate_instantaneous_flow(self, step):
+        # Calculate density
+        area = self.size.width * self.size.height
+        density = len(self.pedestrians_in) / area if area > 0 else 0
+
+        # Calculate average speed
+        total_speed = sum(speed for speed, _ in self.pedestrians_in.values())
+        average_speed = total_speed / len(self.pedestrians_in) if self.pedestrians_in else 0
+
+        # Calculate flow
+        flow = density * average_speed
+        self.flow_measurements.append(flow)
+
+    def get_average_flow(self):
+        return np.mean(self.flow_measurements) if self.flow_measurements else 0
 
     def is_within_bounds(self, position: utils.Position) -> bool:
         within_x = self.upper_left.x <= position.x < self.upper_left.x + self.size.width

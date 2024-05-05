@@ -99,12 +99,7 @@ class Simulation:
         targets = [(pos.x, pos.y) for pos in self.targets]
         for mp in self.measuring_points:
             for ped in self.pedestrians:
-                mp.update_pedestrian(ped, self.current_step)
-
-            # Check if the measurement period has ended to calculate the flow
-        for mp in self.measuring_points:
-            if self.current_step == mp.delay + mp.measuring_time - 1:
-                print(f"Flow at measuring point {mp.ID}: {mp.calculate_flow()}")
+                mp.record_entry(ped, self.current_step)
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
@@ -161,6 +156,10 @@ class Simulation:
                     if moving_distance == 0:
                         pedestrian.move_credit -= pedestrian.speed
                     finished = False
+        for mp in self.measuring_points:
+            for ped in self.pedestrians:
+                mp.record_exit_and_calculate_speed(ped, self.current_step)
+            mp.calculate_instantaneous_flow(self.current_step)
 
         self.current_step += 1
         return finished
@@ -205,12 +204,9 @@ class Simulation:
         # TODO: return a distance grid.
         distance_grid = self._compute_distance_grid(self.targets)
         return distance_grid
-    def get_measured_flows(self) -> dict[int, float]:
-        # Collects flows from all measuring points at the end of the simulation
-        flows = {}
-        for mp in self.measuring_points:
-            flows[mp.ID] = mp.get_flow()  # Get the final calculated flow for each measuring point
-        return flows
+    def get_measured_flows(self):
+        mp = {mp.ID: mp.get_average_flow() for mp in self.measuring_points}
+        return mp
 
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]

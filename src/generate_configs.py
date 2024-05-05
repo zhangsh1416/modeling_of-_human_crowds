@@ -288,7 +288,7 @@ def rimea_2():
             get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
     )
 
-    n_pedestrians = 20
+    n_pedestrians = 80
     hor_span = (6, 30)
     vert_span = (5, 24)
     pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3,3.5))
@@ -298,6 +298,13 @@ def rimea_2():
         {
             "ID": 0,
            "upper_left": {"x": 125, "y": 15},
+            "size": {"width": 5, "height": 5},
+            "delay": 10,
+            "measuring_time": 50
+        },
+        {
+            "ID": 1,
+            "upper_left": {"x": 105, "y": 15},
             "size": {"width": 5, "height": 5},
             "delay": 10,
             "measuring_time": 50
@@ -311,7 +318,7 @@ def rimea_2():
         config_filename,
         {"width": 260, "height": 35},
         tuple(targets),
-        tuple([]),
+        tuple(mp),
         tuple(obstacles),
         tuple(pedestrians),
         is_absorbing=True,
