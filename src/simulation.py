@@ -100,7 +100,7 @@ class Simulation:
             pedestrian.move_credit += pedestrian.speed
 
             # 如果移动信用大于或等于1，则尝试移动行人
-            if pedestrian.move_credit >= math.sqrt(2):
+            if pedestrian.move_credit >= 1:
                 reachable_positions = self.get_reachable_positions(pedestrian)
                 highest_utility = -float('inf')
                 best_position = None
