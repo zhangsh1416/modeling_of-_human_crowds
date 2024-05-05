@@ -1,5 +1,5 @@
 {
-    "distance_computation": "naive",
+    "distance_computation": "dijkstra",
     "grid_size": {
         "height": 35,
         "width": 75

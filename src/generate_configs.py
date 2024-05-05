@@ -232,7 +232,7 @@ def task_4_chicken_test(filename: str):
     n_pedestrians = 50
     hor_span = (6, 13)
     vert_span = (6, 24)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,1.5))
+    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,0.5))
 
     # Set the target at the exit in Room 2
     targets = [{"x": 35, "y": 18}]
@@ -248,7 +248,7 @@ def task_4_chicken_test(filename: str):
         tuple(obstacles),
         tuple(pedestrians),
         is_absorbing=True,
-        distance_computation="dijkstra",
+        distance_computation="naive",
         output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
     )
 
@@ -285,15 +285,15 @@ def rimea_2():
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
             get_horizontal_object(5, 255, 4) +  # Top wall of Room 1
-            get_horizontal_object(5, 255, 30)  # Bottom wall of Room 1
+            get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
     )
 
-    n_pedestrians = 320
-    hor_span = (6, 45)
-    vert_span = (5, 29)
+    n_pedestrians = 240
+    hor_span = (6, 30)
+    vert_span = (5, 24)
     pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3,3.5))
     # Set the target at the exit in Room 2
-    targets = [{"x": 255, "y": y} for y in range(5, 30)]
+    targets = [{"x": 255, "y": y} for y in range(5, 25)]
 
     # Save configuration to JSON
     config_filename = os.path.join(CONFIG_FOLDER, "rimea_2.json")
@@ -345,7 +345,7 @@ def rimea_3():
 if __name__ == "__main__":
 #  task_1("toy_example")
   #  task_4("task_4")
-   # task_4_chicken_test("task_4_chicken_test")
+    #task_4_chicken_test("task_4_chicken_test")
    # rimea_1()
-   # rimea_2()
-   rimea_3()
+    rimea_2()
+   #rimea_3()

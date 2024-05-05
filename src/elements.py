@@ -146,6 +146,8 @@ class MeasuringPoint:
     get_mean_flow() -> np.float64:
         Computes the mean pedestrian flow across the measuring period.
     """
+    def get_mean_flow(self) -> np.float64:
+        pass
 
     ID: int
     upper_left: utils.Position
