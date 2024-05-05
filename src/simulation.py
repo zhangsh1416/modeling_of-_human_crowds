@@ -41,7 +41,7 @@ class Simulation:
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
-        print(self.targets)
+        #print(self.targets)
         #print(self.is_absorbing)
 
     def _cost_function(self,r, r_max):
@@ -100,7 +100,7 @@ class Simulation:
             pedestrian.move_credit += pedestrian.speed
 
             # 如果移动信用大于或等于1，则尝试移动行人
-            if pedestrian.move_credit >= 1:
+            while pedestrian.move_credit >= 1:
                 reachable_positions = self.get_reachable_positions(pedestrian)
                 highest_utility = -float('inf')
                 best_position = None
@@ -114,13 +114,14 @@ class Simulation:
                         best_position = pos
 
                 moving_distance = math.sqrt(
-                    (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
+                    (pedestrian.x - best_position.x) ** 2 + (pedestrian.y - best_position.y) ** 2)
 
                 if best_position in self.targets:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
                         self.pedestrians.remove(pedestrian)
                         finished = True
+                        break
                     else:
                         # 非吸收型目标，行人到达但不被移除
                         pedestrian.x, pedestrian.y = best_position
@@ -136,20 +137,19 @@ class Simulation:
 
         self.current_step += 1
         return finished
-    # 输入单个pedestrian，根据累计credit来计算所有可能的cells
+    # 输入单个pedestrian，找出九宫格内所有可能的cell，包括自己
     def get_reachable_positions(self, pedestrian):
-        move_credit_floor = math.floor(pedestrian.move_credit)
-        x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
-        # 使用 move_credit_floor 确定行人这一步可以移动的最远距离
-        for dx in range(-move_credit_floor, move_credit_floor + 1):
-            for dy in range(-move_credit_floor, move_credit_floor + 1):
-                if dx ** 2 + dy ** 2 <= pedestrian.move_credit ** 2:  # 确保在移动半径内
-                    new_x, new_y = x_start + dx, y_start + dy
-                    if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if (new_x, new_y) not in self.occupied_positions:
-                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
-                                 reachable_positions.append((new_x, new_y))
+        current_position = (pedestrian.x,pedestrian.y)
+        neighbours = self._get_neighbors(current_position)
+        pedestrians_pos = [(p.x, p.y) for p in self.pedestrians]
+        targets_po = [(t.x, t.y) for t in self.targets]
+        for neighbour in neighbours:
+            if neighbour not in pedestrians_pos:
+                if neighbour not in targets_po:
+                    reachable_positions.append(neighbour)
+        if current_position not in targets_po:
+            reachable_positions.append(current_position)
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
@@ -323,7 +323,7 @@ class Simulation:
             if they share a common vertex.
         """
 
-        x, y = position
+        x, y = position[0],position[1]
         neighbors = [utils.Position(x + dx, y + dy) for dx in range(-1, 2) for dy in range(-1, 2)
                      if (dx != 0 or dy != 0) and (0 <= x + dx < self.width) and (0 <= y + dy < self.height)]
         if shuffle:

@@ -288,7 +288,7 @@ def rimea_2():
             get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
     )
 
-    n_pedestrians = 80
+    n_pedestrians = 50
     hor_span = (6, 30)
     vert_span = (5, 24)
     pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3,3.5))
