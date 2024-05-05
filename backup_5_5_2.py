@@ -113,7 +113,7 @@ class Simulation:
             elif pedestrian_position in mp3:
                 m3 == True
             """
-            while pedestrian.move_credit >= 1:
+            while pedestrian.move_credit >= math.sqrt(2):
                 pedestrian_distance = self._compute_pedestrian_grid(pedestrian)
                 neighbours = self._get_neighbors((pedestrian.x,pedestrian.y))
                 reachable_positions = self.get_reachable_positions(pedestrian,neighbours)
