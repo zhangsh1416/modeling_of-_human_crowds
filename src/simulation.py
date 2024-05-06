@@ -158,6 +158,9 @@ class Simulation:
                         finished = True
                     else:
                         # Non-absorbing targets where pedestrians arrive but are not removed, update position
+                        grid[pedestrian.x, pedestrian.y] = (
+                            el.ScenarioElement.empty
+                        )
                         pedestrian.set_position(best_position)
                         grid[pedestrian.x, pedestrian.y] = (
                             el.ScenarioElement.pedestrian
@@ -167,6 +170,7 @@ class Simulation:
                         finished = True
                 else:
                     # Move to a non-target location, update position
+                    grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.empty
                     pedestrian.set_position(best_position)
                     grid[pedestrian.x, pedestrian.y] = (
                         el.ScenarioElement.pedestrian
@@ -175,11 +179,13 @@ class Simulation:
                     finished = True
 
         self.current_step += 1
-        print(grid)
+
         return finished
 
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
-    def get_reachable_positions(self, pedestrian) -> npt.NDArray[utils.Position]:
+    def get_reachable_positions(
+        self, pedestrian
+    ) -> npt.NDArray[utils.Position]:
         move_credit_floor = math.floor(pedestrian.move_credit)
         x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
@@ -195,7 +201,9 @@ class Simulation:
                             if not self.is_position_occupied_by_other_pedestrian(
                                 new_x, new_y, pedestrian
                             ):
-                                reachable_positions.append(utils.Position(new_x, new_y))
+                                reachable_positions.append(
+                                    utils.Position(new_x, new_y)
+                                )
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
