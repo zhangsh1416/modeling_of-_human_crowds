@@ -38,7 +38,6 @@ class Simulation:
         for obstacle in self.obstacles:
             self.grid[obstacle.x, obstacle.y] = el.ScenarioElement.obstacle
         np.random.seed(random_seed)
-        # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
         self.init_pos = {p.ID:[p.x,p.y,0,p.age]for p in self.pedestrians}
         # Read the CSV file
@@ -48,11 +47,15 @@ class Simulation:
         self.flows = []
 
         # Iterate over the sampled data and assign to pedestrians
-        """        for pedestrian, (index, row) in zip(self.pedestrians, sample.iterrows()):
+        """        
+        it was used for 4th test in task5
+                for pedestrian, (index, row) in zip(self.pedestrians, sample.iterrows()):
             pedestrian.age = row['age']
             pedestrian.speed = row['speed']
             self.age.append(pedestrian.age)
-            print(pedestrian.age,pedestrian.ID, pedestrian.speed)"""
+            print(pedestrian.age,pedestrian.ID, pedestrian.speed)
+            
+            """
 
         #print(self.targets)
         #print(self.is_absorbing)
@@ -89,24 +92,33 @@ class Simulation:
 
     def _compute_utility(self, pedestrian_grid, r_max):
         """
-        Calculate the utility for a given position based on distance to target and interaction with other pedestrians.
+        Calculate the utility for a position in the pedestrian grid by considering the distance to targets and the
+    interaction costs with other pedestrians. The utility is computed as the negative sum of the distance to the
+    nearest target and the interaction cost, which increases with pedestrian density.
 
-        Parameters:
-        pedestrian - The pedestrian for whom to calculate the utility.
-        new_position - The tuple (x, y) representing the new position to evaluate.
-        distance_to_target_grid - A grid containing distance to the nearest target, adjusted for obstacles via Dijkstra's algorithm.
-        pedestrian_grid - A grid indicating the presence of other pedestrians, used for calculating interaction costs.
-
-        Returns:
-        Utility value for the new position.
+    Parameters:
+    - pedestrian_grid (array-like): A grid representing the current positions of pedestrians, where each element's
+      value indicates the presence of a pedestrian.
+    - r_max (int): The maximum radius to consider for pedestrian interactions, used in the cost function to
+      determine the impact of nearby pedestrians on the utility.
         """
         utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
         return utility
 
 
     def update(self, perturb: bool = True) -> bool:
-        """Performs one step of the simulation."""
+        """Performs a single step of the simulation, updating the positions of pedestrians based on their speeds, utility
+    of potential positions, and interaction with measuring points. Optionally shuffles the order of pedestrians to
+    simulate randomness in their movement orders.
 
+    Parameters:
+    - perturb (bool): If True, shuffles the list of pedestrians to randomize the update order, simulating more
+      realistic variations in movement. Default is True.
+
+    Returns:
+    - bool: Returns True if all pedestrians have reached their targets or no pedestrians are left to move;
+      returns False otherwise.
+      """
         if perturb:
             np.random.shuffle(self.pedestrians)
 
@@ -170,7 +182,6 @@ class Simulation:
             finished = False
         self.current_step += 1
         return finished
-    # 输入单个pedestrian，找出九宫格内所有可能的cell，包括自己
     def get_reachable_positions(self, pedestrian):
         reachable_positions = []
         current_position = (pedestrian.x,pedestrian.y)
@@ -216,15 +227,8 @@ class Simulation:
         distance_grid = self._compute_distance_grid(self.targets)
         return distance_grid
 
-    def is_within_bounds(self, mp, position):
-        """Check if a position is within the bounds defined by a measuring point."""
-        upper_left = mp.upper_left
-        lower_right_x = upper_left.x + mp.size.width
-        lower_right_y = upper_left.y + mp.size.height
-        return (upper_left.x <= position.x < lower_right_x and
-                upper_left.y <= position.y < lower_right_y)
-
     def get_measured_flows(self):
+        """not been used. mp function has been achieved by other methods """
         mean_flows = {}
         for mp_id, speeds in self.measuring_point_data.items():
             if speeds:
@@ -236,7 +240,21 @@ class Simulation:
     def _compute_distance_grid(
         self, targets: tuple[utils.Position]
     ) -> npt.NDArray[np.float64]:
-        """TODO: write a docstring."""
+        """
+    Compute and return a grid of distances from each grid point to the nearest target in the given tuple of targets.
+
+    The method calculates the distance based on the specified distance computation algorithm. It supports multiple
+    algorithms including a 'naive' method and a 'dijkstra' method for more complex scenarios involving weighted paths.
+
+    Parameters:
+    - targets (tuple[utils.Position]): A tuple of Position objects representing the target locations for which distances are to be calculated.
+
+    Returns:
+    - npt.NDArray[np.float64]: A 2D NumPy array with distances, where each element at position (i, j) in the array represents the distance from the grid point at (i, j) to the nearest target.
+
+    Raises:
+    - ValueError: If an unknown distance computation algorithm is specified.
+         """
 
         if len(targets) == 0:
             distances = np.zeros((self.width, self.height))
@@ -291,9 +309,21 @@ class Simulation:
         return distances
 
     def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
-        """Computes the distance grid using Dijkstra's algorithm with Euclidean distance, considering obstacles as impassable.
-        Each cell's distance is initialized to infinity unless it is a target. If a cell is an obstacle,
-        or it is unreachable from any target, its distance remains infinity."""
+        """
+    Computes a distance grid for a grid-based layout using Dijkstra's algorithm, where each cell's distance is calculated
+    considering obstacles as impassable and using Euclidean distance between cells. The distance from each cell in the
+    grid to the nearest target is calculated, with distances initialized to infinity for all non-target cells.
+
+    Parameters:
+    - targets (tuple[utils.Position]): A tuple of Position objects representing the target positions within the grid
+      for which the distances are to be calculated.
+
+    Returns:
+    - npt.NDArray[np.float64]: A 2D NumPy array of distances. Each element in the array represents the minimum
+      distance from that cell to the nearest target. Cells that are either obstacles or unreachable from any target
+      retain a value of infinity.
+
+    """
         # Initialize the distance grid with infinity values
         distances = np.full((self.width, self.height), np.inf)
         # Determine obstacle locations in the grid
