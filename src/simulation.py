@@ -109,6 +109,8 @@ class Simulation:
     def update(self, perturb: bool = True) -> bool:
         """Performs one step of the simulation."""
 
+        grid = self.get_grid()
+
         if perturb:
             np.random.shuffle(self.pedestrians)
 
@@ -136,8 +138,8 @@ class Simulation:
                     best_position = pos
 
             moving_distance = math.sqrt(
-                (pedestrian.x - best_position[0]) ** 2
-                + (pedestrian.y - best_position[1]) ** 2
+                (pedestrian.x - best_position.x) ** 2
+                + (pedestrian.y - best_position.y) ** 2
             )
 
             # Attempt to move pedestrian when movement credit is greater than or equal to moving_distance
@@ -149,30 +151,35 @@ class Simulation:
                     if self.is_absorbing:
                         # Absorbing targets, pedestrians removed when arrived
                         self.pedestrians.remove(pedestrian)
+                        grid[pedestrian.x, pedestrian.y] = (
+                            el.ScenarioElement.empty
+                        )
+
                         finished = True
                     else:
-                        # Non-absorbing targets where pedestrians arrive but are not removed
-                        pedestrian.x, pedestrian.y = best_position
-                        self.grid[pedestrian.x, pedestrian.y] = (
+                        # Non-absorbing targets where pedestrians arrive but are not removed, update position
+                        pedestrian.set_position(best_position)
+                        grid[pedestrian.x, pedestrian.y] = (
                             el.ScenarioElement.pedestrian
                         )
                         # updating movement credit, pedestrian has moved
                         pedestrian.move_credit -= moving_distance
                         finished = True
                 else:
-                    # Move to a non-target location
-                    pedestrian.x, pedestrian.y = best_position
-                    self.grid[pedestrian.x, pedestrian.y] = (
+                    # Move to a non-target location, update position
+                    pedestrian.set_position(best_position)
+                    grid[pedestrian.x, pedestrian.y] = (
                         el.ScenarioElement.pedestrian
                     )
                     pedestrian.move_credit -= moving_distance
                     finished = True
 
         self.current_step += 1
+        print(grid)
         return finished
 
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
-    def get_reachable_positions(self, pedestrian):
+    def get_reachable_positions(self, pedestrian) -> npt.NDArray[utils.Position]:
         move_credit_floor = math.floor(pedestrian.move_credit)
         x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
@@ -188,7 +195,7 @@ class Simulation:
                             if not self.is_position_occupied_by_other_pedestrian(
                                 new_x, new_y, pedestrian
                             ):
-                                reachable_positions.append((new_x, new_y))
+                                reachable_positions.append(utils.Position(new_x, new_y))
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
