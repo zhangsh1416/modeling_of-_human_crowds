@@ -96,10 +96,11 @@ class Simulation:
 
         finished = True
         for pedestrian in self.pedestrians:
-            # 增加行人的移动信用
+            # Increased pedestrian mobility credits, in order to deal with speeds < 1
             pedestrian.move_credit += pedestrian.speed
 
-            # 如果移动信用大于或等于1，则尝试移动行人
+            # Attempt to move pedestrian when movement credit is greater than or equal to 1
+            # If credit < 1, loop will continue until the credit reaches 1 and pedestrian will move
             if pedestrian.move_credit >= 1:
                 reachable_positions = self.get_reachable_positions(pedestrian)
                 highest_utility = -float('inf')
@@ -118,17 +119,18 @@ class Simulation:
 
                 if best_position in self.targets:
                     if self.is_absorbing:
-                        # 吸收型目标，行人到达后被移除
+                        # Absorbing targets, pedestrians removed when arrived
                         self.pedestrians.remove(pedestrian)
                         finished = True
                     else:
-                        # 非吸收型目标，行人到达但不被移除
+                        # Non-absorbing targets where pedestrians arrive but are not removed
                         pedestrian.x, pedestrian.y = best_position
                         self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                        # updating movement credit, pedestrian has moved
                         pedestrian.move_credit -= moving_distance
                         finished = True
                 else:
-                    # 移动到非目标位置
+                    # Move to a non-target location
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
