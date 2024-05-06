@@ -139,28 +139,30 @@ class Simulation:
                     + (pedestrian.y - best_position[1]) ** 2
                 )
 
-                if best_position in self.targets:
-                    if self.is_absorbing:
-                        # Absorbing targets, pedestrians removed when arrived
-                        self.pedestrians.remove(pedestrian)
-                        finished = True
+                if pedestrian.move_credit >= moving_distance:
+
+                    if best_position in self.targets:
+                        if self.is_absorbing:
+                            # Absorbing targets, pedestrians removed when arrived
+                            self.pedestrians.remove(pedestrian)
+                            finished = True
+                        else:
+                            # Non-absorbing targets where pedestrians arrive but are not removed
+                            pedestrian.x, pedestrian.y = best_position
+                            self.grid[pedestrian.x, pedestrian.y] = (
+                                el.ScenarioElement.pedestrian
+                            )
+                            # updating movement credit, pedestrian has moved
+                            pedestrian.move_credit -= moving_distance
+                            finished = True
                     else:
-                        # Non-absorbing targets where pedestrians arrive but are not removed
+                        # Move to a non-target location
                         pedestrian.x, pedestrian.y = best_position
                         self.grid[pedestrian.x, pedestrian.y] = (
                             el.ScenarioElement.pedestrian
                         )
-                        # updating movement credit, pedestrian has moved
                         pedestrian.move_credit -= moving_distance
                         finished = True
-                else:
-                    # Move to a non-target location
-                    pedestrian.x, pedestrian.y = best_position
-                    self.grid[pedestrian.x, pedestrian.y] = (
-                        el.ScenarioElement.pedestrian
-                    )
-                    pedestrian.move_credit -= moving_distance
-                    finished = True
 
         self.current_step += 1
         return finished
