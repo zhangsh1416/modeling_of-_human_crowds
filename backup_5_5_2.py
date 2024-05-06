@@ -56,7 +56,7 @@ class Simulation:
 
     # Continue with your calculation
 
-    def _cost_function(self, r, r_max):
+    def _cost_function(self, r, r_max) -> float:
         """
         Compute a cost function over a grid based on the distance to the nearest pedestrian,
         applying an exponential decay effect that diminishes beyond r_max.
@@ -94,15 +94,13 @@ class Simulation:
         )
         return pedestrian_distances
 
-    def _compute_utility(self, pedestrian_grid, r_max):
+    def _compute_utility(self, pedestrian_grid, r_max) -> float:
         """
         Calculate the utility for a given position based on distance to target and interaction with other pedestrians.
 
         Parameters:
-        pedestrian - The pedestrian for whom to calculate the utility.
-        new_position - The tuple (x, y) representing the new position to evaluate.
-        distance_to_target_grid - A grid containing distance to the nearest target, adjusted for obstacles via Dijkstra's algorithm.
         pedestrian_grid - A grid indicating the presence of other pedestrians, used for calculating interaction costs.
+        r_max - Hyperparamter of the cost function representing the avoidance radius of a pedestrian
 
         Returns:
         Utility value for the new position.
@@ -112,8 +110,14 @@ class Simulation:
         return utility
 
     def update(self, perturb: bool = True) -> bool:
-        """Performs one step of the simulation."""
+        """ Performs one step of the simulation.
 
+        Parameters:
+
+            perturb - bool. If true, shuffle the pedestrians in order to have a random movement order, and avoid having
+            the same pedestrian moving first all the time.
+
+            """
         if perturb:
             np.random.shuffle(self.pedestrians)
 
@@ -127,9 +131,8 @@ class Simulation:
                 for ped in self.pedestrians:
                     mp.record_entry(ped, self.current_step)
         for pedestrian in self.pedestrians:
-            # 增加行人的移动信用
+            # Increase pedestrian move credit
             pedestrian.move_credit += pedestrian.speed
-            # 如果移动信用大于或等于1，则尝试移动行人
             """
             pedestrian_position = (pedestrian.x, pedestrian.y)
                        if pedestrian_position in mp1: # mp1 is a list consists of positions[()]
@@ -172,18 +175,18 @@ class Simulation:
                 # print(moving_distance)
                 if best_position in targets:
                     if self.is_absorbing:
-                        # 吸收型目标，行人到达后被移除
+                        # Absorbent targets, removed when pedestrians arrive
                         self.pedestrians.remove(pedestrian)
                         pedestrian.move_credit = 0
                         break
                         finished = True
                     else:
-                        # 非吸收型目标，行人到达但不被移除
+                        # non absorbing target where pedestrians arrive but are not removed
                         break
                         pedestrian.move_credit -= 1
                         finished = True
                 else:
-                    # 移动到非目标位置
+                    # Move to a non-target position
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = (
                         el.ScenarioElement.pedestrian
@@ -201,8 +204,10 @@ class Simulation:
         self.current_step += 1
         return finished
 
-    # 输入单个pedestrian，根据累计credit来计算所有可能的cells
+
+
     def get_reachable_positions(self, pedestrian, neighbours):
+        """calculate all reachable neighbours for a single pedestrian"""
         reachable_positions = []
         for neighbour in neighbours:
             pos_tuple = (neighbour.x, neighbour.y)
