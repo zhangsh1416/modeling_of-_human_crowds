@@ -41,7 +41,8 @@ class Pedestrian(utils.Position):
     x: int
     y: int
     speed: float
-    took_steps: int | None = None
+    took_steps = 0
+    age = 0
     move_credit = 0.0  # Initialize the accumulated distance
 
     def get_position(self):
@@ -154,7 +155,10 @@ class MeasuringPoint:
     size: utils.Size
     delay: int
     measuring_time: int
-    pedestrians_in: dict = field(default_factory=dict)  # Tracks pedestrians inside MP at the update start
+    pedestrians_in= {}
+    number_of_pedestrians = 0
+    speeds = []
+    flows = []
     flow_measurements: list = field(default_factory=list)
 
     def record_entry(self, pedestrian, step):

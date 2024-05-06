@@ -4,6 +4,7 @@ import numpy.typing as npt
 from src import elements as el, utils
 import queue
 import math
+import pandas as pd
 
 class Simulation:
     """A class to simulate pedestrian movement in a grid environment."""
@@ -31,18 +32,32 @@ class Simulation:
         self.measuring_points = config.measuring_points  # Assuming this is provided by the configuration
         self.current_step = 0  # Initialize current_step attribute
         self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
-        self.occupied_positions = set()
-
+        self.rimea4 = {p.ID:[p.x,p.y,0,p.age]for p in self.pedestrians}
         for target in self.targets:
             self.grid[target.x, target.y] = el.ScenarioElement.target
         for obstacle in self.obstacles:
             self.grid[obstacle.x, obstacle.y] = el.ScenarioElement.obstacle
-            self.occupied_positions.add((obstacle.x, obstacle.y))
         np.random.seed(random_seed)
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
-        print(self.targets)
+        self.init_pos = {p.ID:[p.x,p.y,0,p.age]for p in self.pedestrians}
+        # Read the CSV file
+       # data = pd.read_csv('C:\\Users\\shihong\\Desktop\MLCMS\\mlicms24newex1-groupf\\configs\\rimea_7_speeds.csv')
+        #sample = data.sample(n=len(self.pedestrians), random_state=1, replace=False)
+        self.age = []
+        self.flows = []
+
+        # Iterate over the sampled data and assign to pedestrians
+        """        for pedestrian, (index, row) in zip(self.pedestrians, sample.iterrows()):
+            pedestrian.age = row['age']
+            pedestrian.speed = row['speed']
+            self.age.append(pedestrian.age)
+            print(pedestrian.age,pedestrian.ID, pedestrian.speed)"""
+
+        #print(self.targets)
         #print(self.is_absorbing)
+
+
 
     def _cost_function(self,r, r_max):
         """
@@ -88,6 +103,7 @@ class Simulation:
         utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
         return utility
 
+
     def update(self, perturb: bool = True) -> bool:
         """Performs one step of the simulation."""
 
@@ -95,12 +111,17 @@ class Simulation:
             np.random.shuffle(self.pedestrians)
 
         finished = True
+        for mp in self.measuring_points:
+            if (mp.delay+mp.measuring_time)>= self.current_step >= mp.delay:
+                for pedestrian in self.pedestrians:
+                    if (mp.upper_left.x ) <= pedestrian.x <= (mp.upper_left.x + mp.size.width) and (mp.upper_left.y ) <= pedestrian.y <= (mp.upper_left.y + mp.size.height):
+                        mp.pedestrians_in[pedestrian.ID] = [pedestrian.x,pedestrian.y]
         for pedestrian in self.pedestrians:
             # 增加行人的移动信用
             pedestrian.move_credit += pedestrian.speed
 
             # 如果移动信用大于或等于1，则尝试移动行人
-            if pedestrian.move_credit >= 1:
+            while pedestrian.move_credit >= 1:
                 reachable_positions = self.get_reachable_positions(pedestrian)
                 highest_utility = -float('inf')
                 best_position = None
@@ -114,42 +135,54 @@ class Simulation:
                         best_position = pos
 
                 moving_distance = math.sqrt(
-                    (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
+                    (pedestrian.x - best_position.x) ** 2 + (pedestrian.y - best_position.y) ** 2)
 
                 if best_position in self.targets:
                     if self.is_absorbing:
                         # 吸收型目标，行人到达后被移除
+                        self.rimea4[pedestrian.ID] = [best_position.x,best_position.y,pedestrian.took_steps]
                         self.pedestrians.remove(pedestrian)
-                        finished = True
+                        break
                     else:
                         # 非吸收型目标，行人到达但不被移除
-                        pedestrian.x, pedestrian.y = best_position
-                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
-                        pedestrian.move_credit -= moving_distance
-                        finished = True
+                        self.rimea4[pedestrian.ID] = [best_position.x,best_position.y,pedestrian.took_steps]
+                        pedestrian.move_credit = 0
+                        break
                 else:
                     # 移动到非目标位置
                     pedestrian.x, pedestrian.y = best_position
                     self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
                     pedestrian.move_credit -= moving_distance
-                    finished = True
+            pedestrian.took_steps += 1
 
+        for mp in self.measuring_points:
+            if (mp.delay+mp.measuring_time)>= self.current_step >= mp.delay:
+                for ID in mp.pedestrians_in:
+                    for pedestrian in self.pedestrians:
+                        if ID == pedestrian.ID:
+                            speed = math.sqrt((mp.pedestrians_in[ID][0]-pedestrian.x)**2 + (mp.pedestrians_in[ID][1]-pedestrian.y)**2)
+                            speeds = []
+                            speeds.append(speed)
+                            mp.flows.append(sum(speeds))
+                            speeds.clear()
+            mp.pedestrians_in.clear()
+        if self.pedestrians:
+            finished = False
         self.current_step += 1
         return finished
-    # 输入单个pedestrian，根据累计credit来计算所有可能的cells
+    # 输入单个pedestrian，找出九宫格内所有可能的cell，包括自己
     def get_reachable_positions(self, pedestrian):
-        move_credit_floor = math.floor(pedestrian.move_credit)
-        x_start, y_start = pedestrian.x, pedestrian.y
         reachable_positions = []
-        # 使用 move_credit_floor 确定行人这一步可以移动的最远距离
-        for dx in range(-move_credit_floor, move_credit_floor + 1):
-            for dy in range(-move_credit_floor, move_credit_floor + 1):
-                if dx ** 2 + dy ** 2 <= pedestrian.move_credit ** 2:  # 确保在移动半径内
-                    new_x, new_y = x_start + dx, y_start + dy
-                    if 0 <= new_x < self.width and 0 <= new_y < self.height:
-                        if (new_x, new_y) not in self.occupied_positions:
-                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
-                                 reachable_positions.append((new_x, new_y))
+        current_position = (pedestrian.x,pedestrian.y)
+        neighbours = self._get_neighbors(current_position)
+        pedestrians_pos = [(p.x, p.y) for p in self.pedestrians]
+        targets_po = [(t.x, t.y) for t in self.targets]
+        for neighbour in neighbours:
+            if neighbour not in pedestrians_pos:
+                if neighbour not in targets_po:
+                    reachable_positions.append(neighbour)
+        if current_position not in targets_po:
+            reachable_positions.append(current_position)
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
@@ -323,7 +356,7 @@ class Simulation:
             if they share a common vertex.
         """
 
-        x, y = position
+        x, y = position[0],position[1]
         neighbors = [utils.Position(x + dx, y + dy) for dx in range(-1, 2) for dy in range(-1, 2)
                      if (dx != 0 or dy != 0) and (0 <= x + dx < self.width) and (0 <= y + dy < self.height)]
         if shuffle:

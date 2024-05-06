@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
-
+import math
 from src import simulation as sim, elements as el, utils
-
+import matplotlib.pyplot as plt
 
 class CellularAutomatonGUI:
     """This class defines a GUI for a cellular automaton simulation.
@@ -40,6 +40,7 @@ class CellularAutomatonGUI:
         self._grid_image = None
         self._show_distance = False
         self._is_running = False
+
 
     def start_gui(self, title: str = "Cellular Automaton GUI"):
         """Starts the GUI with the provided window title.
@@ -114,6 +115,30 @@ class CellularAutomatonGUI:
         self._show_distance = not self._show_distance
         self._show_simulation_state()
 
+    def calculate_speeds(self,rimea4, init_pos):
+        # Create a dictionary to store the speed of each point
+        speeds = []
+        # Iterate over all items in one of the dictionaries
+        for id, end_pos in rimea4.items():
+            if id in init_pos:
+                # Retrieve the initial position
+                start_pos = init_pos[id]
+                # Calculate the Euclidean distance
+                distance = math.sqrt((end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2)
+                # Get the time difference
+                time = end_pos[2]
+                # Calculate the speed, avoiding division by zero
+                if time != 0:
+                    speed = distance / time
+                else:
+                    speed = 0  # Define speed as 0 if time difference is 0 to avoid division by zero
+                # Store the speed in the dictionary
+                speeds.append(speed)
+                # Print the ID and speed of each point
+                #print(f"ID: {id}, Speed: {speed:.2f} units/time")
+        return speeds
+
+
     def _step_simulation(self, anim=False):
         """Performs one step of a simulation.
 
@@ -132,7 +157,26 @@ class CellularAutomatonGUI:
 
         if finished:
             self._is_running = False
+            """speeds = self.calculate_speeds(self._simulation.rimea4,self._simulation.init_pos)
+            print(speeds)
+            
+            ages = self._simulation.age
+            plt.scatter(ages, speeds)
 
+            # 标题和标签
+            plt.title("Age vs Observed Horizontal Walking Speed")
+            plt.xlabel("Age (in years)")
+            plt.ylabel("Walking Speed (m/s)")
+
+            # 显示网格（可选）
+            plt.grid(True)
+
+            # 显示图表
+            plt.show()"""
+            for mp in self._simulation.measuring_points:
+                if len(mp.flows) != 0:
+                     print(mp.ID,sum(mp.flows)/len(mp.flows))
+            print("finished")
         if anim and self._is_running:
             self._canvas.after(self._step_ms, self._step_simulation, anim)
 
