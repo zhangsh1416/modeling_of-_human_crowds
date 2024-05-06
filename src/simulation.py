@@ -119,50 +119,54 @@ class Simulation:
 
             # Attempt to move pedestrian when movement credit is greater than or equal to 1
             # If credit < 1, loop will continue until the credit reaches 1 and pedestrian will move
-            if pedestrian.move_credit >= 1:
-                reachable_positions = self.get_reachable_positions(pedestrian)
-                highest_utility = -float("inf")
-                best_position = None
-                utility_values = self._compute_utility(
-                    self.distance_to_targets, r_max=3
-                )
+            # As long as credit >=1 loop continues and pedestrian keeps moving
+            # if pedestrian.move_credit >= 1:
+            reachable_positions = self.get_reachable_positions(pedestrian)
+            highest_utility = -float("inf")
+            best_position = None
+            utility_values = self._compute_utility(
+                self.distance_to_targets, r_max=3
+            )
 
-                for pos in reachable_positions:
-                    x, y = pos
-                    utility_value = utility_values[x][y]
-                    if utility_value > highest_utility:
-                        highest_utility = utility_value
-                        best_position = pos
+            for pos in reachable_positions:
+                x, y = pos
+                utility_value = utility_values[x][y]
+                if utility_value > highest_utility:
+                    highest_utility = utility_value
+                    best_position = pos
 
-                moving_distance = math.sqrt(
-                    (pedestrian.x - best_position[0]) ** 2
-                    + (pedestrian.y - best_position[1]) ** 2
-                )
+            moving_distance = math.sqrt(
+                (pedestrian.x - best_position[0]) ** 2
+                + (pedestrian.y - best_position[1]) ** 2
+            )
 
-                if pedestrian.move_credit >= moving_distance:
+            # Attempt to move pedestrian when movement credit is greater than or equal to moving_distance
+            # If credit is not sufficient, loop will continue until the credit is big enough and pedestrian will move
+            # As long as credit >= moving_distance loop continues and pedestrian keeps moving
 
-                    if best_position in self.targets:
-                        if self.is_absorbing:
-                            # Absorbing targets, pedestrians removed when arrived
-                            self.pedestrians.remove(pedestrian)
-                            finished = True
-                        else:
-                            # Non-absorbing targets where pedestrians arrive but are not removed
-                            pedestrian.x, pedestrian.y = best_position
-                            self.grid[pedestrian.x, pedestrian.y] = (
-                                el.ScenarioElement.pedestrian
-                            )
-                            # updating movement credit, pedestrian has moved
-                            pedestrian.move_credit -= moving_distance
-                            finished = True
+            if pedestrian.move_credit >= moving_distance:
+                if best_position in self.targets:
+                    if self.is_absorbing:
+                        # Absorbing targets, pedestrians removed when arrived
+                        self.pedestrians.remove(pedestrian)
+                        finished = True
                     else:
-                        # Move to a non-target location
+                        # Non-absorbing targets where pedestrians arrive but are not removed
                         pedestrian.x, pedestrian.y = best_position
                         self.grid[pedestrian.x, pedestrian.y] = (
                             el.ScenarioElement.pedestrian
                         )
+                        # updating movement credit, pedestrian has moved
                         pedestrian.move_credit -= moving_distance
                         finished = True
+                else:
+                    # Move to a non-target location
+                    pedestrian.x, pedestrian.y = best_position
+                    self.grid[pedestrian.x, pedestrian.y] = (
+                        el.ScenarioElement.pedestrian
+                    )
+                    pedestrian.move_credit -= moving_distance
+                    finished = True
 
         self.current_step += 1
         return finished

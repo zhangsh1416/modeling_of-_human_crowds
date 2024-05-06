@@ -50,6 +50,9 @@ class Pedestrian(utils.Position):
     def set_position(self, position):
         self.x, self.y = position.x, position.y
 
+    def set_steps(self, steps):
+        took_steps = steps
+
     position = property(get_position, set_position)
 
 
