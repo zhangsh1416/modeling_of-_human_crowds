@@ -8,10 +8,13 @@ OUTPUT_FOLDER = "outputs"
 
 CELL_SIZE = 0.4
 
-new_root_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+new_root_directory = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
 
 # 改变当前工作目录
 os.chdir(new_root_directory)
+
 
 def get_vertical_object(x: int, y_start: int, y_end: int) -> tuple[dict]:
     """Generates a list of positions in the provided vertical range.
@@ -159,8 +162,9 @@ def task_1(filename: str):
         distance_computation,
         output_filename,
     )
-def task_4(filename: str):
 
+
+def task_4(filename: str):
     # Constants
     CELL_SIZE = 0.4  # each cell is 0.4 meters
     WIDTH_ROOM1 = int(10 / CELL_SIZE)
@@ -172,26 +176,28 @@ def task_4(filename: str):
 
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-        get_horizontal_object(5, 29, 5) +  # Top wall of Room 1
-        get_horizontal_object(5, 29, 30) +  # Bottom wall of Room 1
-        get_vertical_object(5, 6, 29) +  # Left wall of Room 1
-        get_vertical_object(30, 5, 16) +  # Right wall of Room 1
-        get_vertical_object(30, 19, 30) +
-        get_horizontal_object(31,43, 16) +
-        get_horizontal_object(31,43,19) +
-        get_horizontal_object(43,68,5) +  # Top wall of Room 2
-        get_horizontal_object(43,68,30) +  # Bottom wall of Room 2
-        get_vertical_object(43,6,15) +  # Left wall of Room 2
-        get_vertical_object(43,20,29) +
-        get_vertical_object(68,6,16) + # Right wall of Room 2
-        get_vertical_object(68,19,29)
+        get_horizontal_object(5, 29, 5)  # Top wall of Room 1
+        + get_horizontal_object(5, 29, 30)  # Bottom wall of Room 1
+        + get_vertical_object(5, 6, 29)  # Left wall of Room 1
+        + get_vertical_object(30, 5, 16)  # Right wall of Room 1
+        + get_vertical_object(30, 19, 30)
+        + get_horizontal_object(31, 43, 16)
+        + get_horizontal_object(31, 43, 19)
+        + get_horizontal_object(43, 68, 5)  # Top wall of Room 2
+        + get_horizontal_object(43, 68, 30)  # Bottom wall of Room 2
+        + get_vertical_object(43, 6, 15)  # Left wall of Room 2
+        + get_vertical_object(43, 20, 29)
+        + get_vertical_object(68, 6, 16)  # Right wall of Room 2
+        + get_vertical_object(68, 19, 29)
     )
 
     # Generate pedestrians in the left quarter of Room 1
     n_pedestrians = 50
     hor_span = (6, 13)
     vert_span = (6, 24)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,5))
+    pedestrians = generate_pedestrians(
+        hor_span, vert_span, n_pedestrians, speed_bounds=(0.5, 5)
+    )
 
     # Set the target at the exit in Room 2
     targets = [{"x": 68, "y": y} for y in range(17, 19)]
@@ -201,7 +207,7 @@ def task_4(filename: str):
     print(config_filename)
     save_json(
         config_filename,
-        {"width": 75, "height": 35 },
+        {"width": 75, "height": 35},
         tuple(targets),
         tuple([]),
         tuple(obstacles),
@@ -210,6 +216,7 @@ def task_4(filename: str):
         distance_computation="naive",
         output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
     )
+
 
 def task_4_chicken_test(filename: str):
     # Constants
@@ -223,16 +230,18 @@ def task_4_chicken_test(filename: str):
 
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-            get_horizontal_object(5, 29, 5) +
-            get_horizontal_object(5, 29, 30) +
-            get_vertical_object(30, 5, 30)
+        get_horizontal_object(5, 29, 5)
+        + get_horizontal_object(5, 29, 30)
+        + get_vertical_object(30, 5, 30)
     )
 
     # Generate pedestrians in the left quarter of Room 1
     n_pedestrians = 50
     hor_span = (6, 13)
     vert_span = (6, 24)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(0.5,0.5))
+    pedestrians = generate_pedestrians(
+        hor_span, vert_span, n_pedestrians, speed_bounds=(0.5, 0.5)
+    )
 
     # Set the target at the exit in Room 2
     targets = [{"x": 35, "y": 18}]
@@ -252,18 +261,20 @@ def task_4_chicken_test(filename: str):
         output_filename=os.path.join(OUTPUT_FOLDER, f"{filename}.csv"),
     )
 
-def rimea_1():
 
+def rimea_1():
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-            get_horizontal_object(5, 105, 4) +  # Top wall of Room 1
-            get_horizontal_object(5, 105, 10)  # Bottom wall of Room 1
+        get_horizontal_object(5, 105, 4)  # Top wall of Room 1
+        + get_horizontal_object(5, 105, 10)  # Bottom wall of Room 1
     )
 
     n_pedestrians = 1
     hor_span = (5, 5)
     vert_span = (8, 8)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3.125, 3.542))
+    pedestrians = generate_pedestrians(
+        hor_span, vert_span, n_pedestrians, speed_bounds=(3.125, 3.542)
+    )
     # Set the target at the exit in Room 2
     targets = [{"x": 105, "y": y} for y in range(5, 10)]
 
@@ -281,34 +292,38 @@ def rimea_1():
         distance_computation="naive",
         output_filename=os.path.join(OUTPUT_FOLDER, "rimea_1.csv"),
     )
+
+
 def rimea_2():
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-            get_horizontal_object(5, 255, 4) +  # Top wall of Room 1
-            get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
+        get_horizontal_object(5, 255, 4)  # Top wall of Room 1
+        + get_horizontal_object(5, 255, 25)  # Bottom wall of Room 1
     )
 
     n_pedestrians = 50
     hor_span = (6, 30)
     vert_span = (5, 24)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3,3.5))
+    pedestrians = generate_pedestrians(
+        hor_span, vert_span, n_pedestrians, speed_bounds=(3, 3.5)
+    )
     # Set the target at the exit in Room 2
     targets = [{"x": 255, "y": y} for y in range(5, 25)]
     mp = [
         {
             "ID": 0,
-           "upper_left": {"x": 125, "y": 15},
+            "upper_left": {"x": 125, "y": 15},
             "size": {"width": 5, "height": 5},
             "delay": 10,
-            "measuring_time": 50
+            "measuring_time": 50,
         },
         {
             "ID": 1,
             "upper_left": {"x": 105, "y": 15},
             "size": {"width": 5, "height": 5},
             "delay": 10,
-            "measuring_time": 50
-        }
+            "measuring_time": 50,
+        },
     ]
 
     # Save configuration to JSON
@@ -325,19 +340,23 @@ def rimea_2():
         distance_computation="naive",
         output_filename=os.path.join(OUTPUT_FOLDER, "rimea_2.csv"),
     )
+
+
 def rimea_3():
     # Obstacle setup: walls around the rooms and the corridor
     obstacles = (
-            get_horizontal_object(0, 30, 30) +  # Top wall of Room 1
-            get_horizontal_object(0, 36, 36) + # Bottom wall of Room 1
-            get_vertical_object(30,5,29) +
-            get_vertical_object(36,5,35)
+        get_horizontal_object(0, 30, 30)  # Top wall of Room 1
+        + get_horizontal_object(0, 36, 36)  # Bottom wall of Room 1
+        + get_vertical_object(30, 5, 29)
+        + get_vertical_object(36, 5, 35)
     )
 
     n_pedestrians = 20
     hor_span = (5, 14)
     vert_span = (31, 35)
-    pedestrians = generate_pedestrians(hor_span, vert_span, n_pedestrians, speed_bounds=(3.125, 3.542))
+    pedestrians = generate_pedestrians(
+        hor_span, vert_span, n_pedestrians, speed_bounds=(3.125, 3.542)
+    )
     # Set the target at the exit in Room 2
     targets = [{"x": x, "y": 5} for x in range(31, 36)]
 
@@ -356,12 +375,13 @@ def rimea_3():
         output_filename=os.path.join(OUTPUT_FOLDER, "rimea_3.csv"),
     )
 
+
 # TODO: create configs for other tasks.
 
 if __name__ == "__main__":
-#  task_1("toy_example")
-  #  task_4("task_4")
-    #task_4_chicken_test("task_4_chicken_test")
-   # rimea_1()
+    #  task_1("toy_example")
+    #  task_4("task_4")
+    # task_4_chicken_test("task_4_chicken_test")
+    # rimea_1()
     rimea_2()
-   #rimea_3()
+# rimea_3()

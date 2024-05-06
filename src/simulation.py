@@ -5,6 +5,7 @@ from src import elements as el, utils
 import queue
 import math
 
+
 class Simulation:
     """A class to simulate pedestrian movement in a grid environment."""
 
@@ -20,17 +21,26 @@ class Simulation:
             Seed for the random number generator to ensure reproducibility (default 42).
         """
         self.grid_size = config.grid_size
-        self.width, self.height = config.grid_size.width, config.grid_size.height
+        self.width, self.height = (
+            config.grid_size.width,
+            config.grid_size.height,
+        )
         self.output_filename = config.output_filename
-        self.grid = np.full((self.width, self.height), el.ScenarioElement.empty)
+        self.grid = np.full(
+            (self.width, self.height), el.ScenarioElement.empty
+        )
         self.pedestrians = config.pedestrians
         self.targets = config.targets
         self.obstacles = config.obstacles
         self.is_absorbing = config.is_absorbing
         self.distance_computation = config.distance_computation
-        self.measuring_points = config.measuring_points  # Assuming this is provided by the configuration
+        self.measuring_points = (
+            config.measuring_points
+        )  # Assuming this is provided by the configuration
         self.current_step = 0  # Initialize current_step attribute
-        self.measuring_point_data = {mp.ID: [] for mp in self.measuring_points}  # Data collection
+        self.measuring_point_data = {
+            mp.ID: [] for mp in self.measuring_points
+        }  # Data collection
         self.occupied_positions = set()
 
         for target in self.targets:
@@ -42,9 +52,9 @@ class Simulation:
         # obstacles在一次模拟中是固定的，所以计算distance to closest target网格只需要进行一次
         self.distance_to_targets = self._compute_distance_grid(self.targets)
         print(self.targets)
-        #print(self.is_absorbing)
+        # print(self.is_absorbing)
 
-    def _cost_function(self,r, r_max):
+    def _cost_function(self, r, r_max):
         """
         Compute a cost function over a grid based on the distance to the nearest pedestrian,
         applying an exponential decay effect that diminishes beyond r_max.
@@ -59,17 +69,23 @@ class Simulation:
         # Apply cost function only where the distance is less than r_max
         # and avoid division by zero or negative square root by ensuring r^2 - r_max^2 is positive
         mask = r < r_max
-        safe_r = np.where(mask, r, r_max - 1e-10)  # Use r_max where r >= r_max to avoid negative under the square root
-        cost = np.where(mask, np.exp(1 / (safe_r ** 2 - r_max ** 2)), 0)
+        safe_r = np.where(
+            mask, r, r_max - 1e-10
+        )  # Use r_max where r >= r_max to avoid negative under the square root
+        cost = np.where(mask, np.exp(1 / (safe_r**2 - r_max**2)), 0)
 
         return cost
 
     def _compute_pedestrian_grid(self) -> npt.NDArray[np.float64]:
         """Computes a grid with distances to the closest pedestrian."""
-        pedestrian_positions = [(pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians]
+        pedestrian_positions = [
+            (pedestrian.x, pedestrian.y) for pedestrian in self.pedestrians
+        ]
         pedestrian_positions = np.array(pedestrian_positions)
         pedestrian_positions = tuple(pedestrian_positions)
-        pedestrian_distances = self._compute_naive_distance_grid(pedestrian_positions)
+        pedestrian_distances = self._compute_naive_distance_grid(
+            pedestrian_positions
+        )
         return pedestrian_distances
 
     def _compute_utility(self, pedestrian_grid, r_max):
@@ -85,7 +101,9 @@ class Simulation:
         Returns:
         Utility value for the new position.
         """
-        utility = -self.distance_to_targets - self._cost_function(pedestrian_grid,r_max)
+        utility = -self.distance_to_targets - self._cost_function(
+            pedestrian_grid, r_max
+        )
         return utility
 
     def update(self, perturb: bool = True) -> bool:
@@ -103,9 +121,11 @@ class Simulation:
             # If credit < 1, loop will continue until the credit reaches 1 and pedestrian will move
             if pedestrian.move_credit >= 1:
                 reachable_positions = self.get_reachable_positions(pedestrian)
-                highest_utility = -float('inf')
+                highest_utility = -float("inf")
                 best_position = None
-                utility_values = self._compute_utility(self.distance_to_targets,r_max=3)
+                utility_values = self._compute_utility(
+                    self.distance_to_targets, r_max=3
+                )
 
                 for pos in reachable_positions:
                     x, y = pos
@@ -115,7 +135,9 @@ class Simulation:
                         best_position = pos
 
                 moving_distance = math.sqrt(
-                    (pedestrian.x - best_position[0]) ** 2 + (pedestrian.y - best_position[1]) ** 2)
+                    (pedestrian.x - best_position[0]) ** 2
+                    + (pedestrian.y - best_position[1]) ** 2
+                )
 
                 if best_position in self.targets:
                     if self.is_absorbing:
@@ -125,19 +147,24 @@ class Simulation:
                     else:
                         # Non-absorbing targets where pedestrians arrive but are not removed
                         pedestrian.x, pedestrian.y = best_position
-                        self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                        self.grid[pedestrian.x, pedestrian.y] = (
+                            el.ScenarioElement.pedestrian
+                        )
                         # updating movement credit, pedestrian has moved
                         pedestrian.move_credit -= moving_distance
                         finished = True
                 else:
                     # Move to a non-target location
                     pedestrian.x, pedestrian.y = best_position
-                    self.grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+                    self.grid[pedestrian.x, pedestrian.y] = (
+                        el.ScenarioElement.pedestrian
+                    )
                     pedestrian.move_credit -= moving_distance
                     finished = True
 
         self.current_step += 1
         return finished
+
     # 输入单个pedestrian，根据累计credit来计算所有可能的cells
     def get_reachable_positions(self, pedestrian):
         move_credit_floor = math.floor(pedestrian.move_credit)
@@ -146,12 +173,16 @@ class Simulation:
         # 使用 move_credit_floor 确定行人这一步可以移动的最远距离
         for dx in range(-move_credit_floor, move_credit_floor + 1):
             for dy in range(-move_credit_floor, move_credit_floor + 1):
-                if dx ** 2 + dy ** 2 <= pedestrian.move_credit ** 2:  # 确保在移动半径内
+                if (
+                    dx**2 + dy**2 <= pedestrian.move_credit**2
+                ):  # 确保在移动半径内
                     new_x, new_y = x_start + dx, y_start + dy
                     if 0 <= new_x < self.width and 0 <= new_y < self.height:
                         if (new_x, new_y) not in self.occupied_positions:
-                            if not self.is_position_occupied_by_other_pedestrian(new_x, new_y, pedestrian):
-                                 reachable_positions.append((new_x, new_y))
+                            if not self.is_position_occupied_by_other_pedestrian(
+                                new_x, new_y, pedestrian
+                            ):
+                                reachable_positions.append((new_x, new_y))
         return reachable_positions
 
     def is_position_occupied_by_other_pedestrian(self, x, y, pedestrian):
@@ -163,7 +194,11 @@ class Simulation:
 
     def get_grid(self) -> npt.NDArray[el.ScenarioElement]:
         """Returns a full state grid of the shape (width, height)."""
-        grid = np.full((self.width, self.height), el.ScenarioElement.empty, dtype=el.ScenarioElement)
+        grid = np.full(
+            (self.width, self.height),
+            el.ScenarioElement.empty,
+            dtype=el.ScenarioElement,
+        )
         # Place static elements: targets and obstacles
         for target in self.targets:
             grid[target.x, target.y] = el.ScenarioElement.target
@@ -173,8 +208,13 @@ class Simulation:
         # Place dynamic elements: pedestrians
         for pedestrian in self.pedestrians:
             # Check if the pedestrian is within grid bounds to avoid out-of-index errors
-            if 0 <= pedestrian.x < self.width and 0 <= pedestrian.y < self.height:
-                grid[pedestrian.x, pedestrian.y] = el.ScenarioElement.pedestrian
+            if (
+                0 <= pedestrian.x < self.width
+                and 0 <= pedestrian.y < self.height
+            ):
+                grid[pedestrian.x, pedestrian.y] = (
+                    el.ScenarioElement.pedestrian
+                )
         # print(self.current_step)
         return grid
 
@@ -190,8 +230,10 @@ class Simulation:
         upper_left = mp.upper_left
         lower_right_x = upper_left.x + mp.size.width
         lower_right_y = upper_left.y + mp.size.height
-        return (upper_left.x <= position.x < lower_right_x and
-                upper_left.y <= position.y < lower_right_y)
+        return (
+            upper_left.x <= position.x < lower_right_x
+            and upper_left.y <= position.y < lower_right_y
+        )
 
     def get_measured_flows(self):
         mean_flows = {}
@@ -259,7 +301,9 @@ class Simulation:
 
         return distances
 
-    def _compute_dijkstra_distance_grid(self, targets: tuple[utils.Position]) -> npt.NDArray[np.float64]:
+    def _compute_dijkstra_distance_grid(
+        self, targets: tuple[utils.Position]
+    ) -> npt.NDArray[np.float64]:
         """Computes the distance grid using Dijkstra's algorithm with Euclidean distance, considering obstacles as impassable.
         Each cell's distance is initialized to infinity unless it is a target. If a cell is an obstacle,
         or it is unreachable from any target, its distance remains infinity."""
@@ -274,12 +318,23 @@ class Simulation:
         # Initialize the queue with target positions at distance 0
         for target in targets:
             x, y = target.x, target.y
-            if not obstacles[x, y]:  # Only proceed if the target is not an obstacle
+            if not obstacles[
+                x, y
+            ]:  # Only proceed if the target is not an obstacle
                 distances[x, y] = 0
                 pq.put((0, (x, y)))
 
         # Define relative positions for neighbor cells (N, E, S, W and the diagonals)
-        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        directions = [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+        ]
 
         # Process the queue
         while not pq.empty():
@@ -293,10 +348,16 @@ class Simulation:
             for dx, dy in directions:
                 nx, ny = x + dx, y + dy
                 # Ensure the neighbor is within bounds and is not an obstacle
-                if 0 <= nx < self.width and 0 <= ny < self.height and not obstacles[nx, ny]:
+                if (
+                    0 <= nx < self.width
+                    and 0 <= ny < self.height
+                    and not obstacles[nx, ny]
+                ):
                     # Calculate Euclidean distance for the step
-                    euclidean_distance = math.sqrt(dx ** 2 + dy ** 2)
-                    new_distance = current_distance + euclidean_distance  # Update distance using Euclidean formula
+                    euclidean_distance = math.sqrt(dx**2 + dy**2)
+                    new_distance = (
+                        current_distance + euclidean_distance
+                    )  # Update distance using Euclidean formula
                     # Update the neighbor's distance if a shorter path is found
                     if new_distance < distances[nx, ny]:
                         distances[nx, ny] = new_distance
@@ -326,8 +387,14 @@ class Simulation:
         """
 
         x, y = position
-        neighbors = [utils.Position(x + dx, y + dy) for dx in range(-1, 2) for dy in range(-1, 2)
-                     if (dx != 0 or dy != 0) and (0 <= x + dx < self.width) and (0 <= y + dy < self.height)]
+        neighbors = [
+            utils.Position(x + dx, y + dy)
+            for dx in range(-1, 2)
+            for dy in range(-1, 2)
+            if (dx != 0 or dy != 0)
+            and (0 <= x + dx < self.width)
+            and (0 <= y + dy < self.height)
+        ]
         if shuffle:
             np.random.shuffle(neighbors)
         return neighbors

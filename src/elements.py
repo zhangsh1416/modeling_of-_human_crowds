@@ -146,6 +146,7 @@ class MeasuringPoint:
     get_mean_flow() -> np.float64:
         Computes the mean pedestrian flow across the measuring period.
     """
+
     def get_mean_flow(self) -> np.float64:
         pass
 
@@ -154,21 +155,32 @@ class MeasuringPoint:
     size: utils.Size
     delay: int
     measuring_time: int
-    pedestrians_in: dict = field(default_factory=dict)  # Tracks pedestrians inside MP at the update start
+    pedestrians_in: dict = field(
+        default_factory=dict
+    )  # Tracks pedestrians inside MP at the update start
     flow_measurements: list = field(default_factory=list)
 
     def record_entry(self, pedestrian, step):
         if self.is_within_bounds(utils.Position(pedestrian.x, pedestrian.y)):
-            self.pedestrians_in[pedestrian.ID] = (step, (pedestrian.x, pedestrian.y))
+            self.pedestrians_in[pedestrian.ID] = (
+                step,
+                (pedestrian.x, pedestrian.y),
+            )
 
     def record_exit_and_calculate_speed(self, pedestrian, step):
         if pedestrian.ID in self.pedestrians_in:
             entry_step, entry_pos = self.pedestrians_in[pedestrian.ID]
             if step > entry_step:  # Ensure at least one step has occurred
-                distance = np.linalg.norm(np.array((pedestrian.x, pedestrian.y)) - np.array(entry_pos))
+                distance = np.linalg.norm(
+                    np.array((pedestrian.x, pedestrian.y))
+                    - np.array(entry_pos)
+                )
                 time = step - entry_step
                 speed = distance / time if time > 0 else 0
-                self.pedestrians_in[pedestrian.ID] = (speed, (pedestrian.x, pedestrian.y))
+                self.pedestrians_in[pedestrian.ID] = (
+                    speed,
+                    (pedestrian.x, pedestrian.y),
+                )
             else:
                 self.pedestrians_in.pop(pedestrian.ID)
 
@@ -179,7 +191,11 @@ class MeasuringPoint:
 
         # Calculate average speed
         total_speed = sum(speed for speed, _ in self.pedestrians_in.values())
-        average_speed = total_speed / len(self.pedestrians_in) if self.pedestrians_in else 0
+        average_speed = (
+            total_speed / len(self.pedestrians_in)
+            if self.pedestrians_in
+            else 0
+        )
 
         # Calculate flow
         flow = density * average_speed
@@ -189,8 +205,16 @@ class MeasuringPoint:
         return np.mean(self.flow_measurements) if self.flow_measurements else 0
 
     def is_within_bounds(self, position: utils.Position) -> bool:
-        within_x = self.upper_left.x <= position.x < self.upper_left.x + self.size.width
-        within_y = self.upper_left.y <= position.y < self.upper_left.y + self.size.height
+        within_x = (
+            self.upper_left.x
+            <= position.x
+            < self.upper_left.x + self.size.width
+        )
+        within_y = (
+            self.upper_left.y
+            <= position.y
+            < self.upper_left.y + self.size.height
+        )
         return within_x and within_y
 
     @classmethod
@@ -204,7 +228,7 @@ class MeasuringPoint:
             delay=config_dict["delay"],
             measuring_time=config_dict["measuring_time"],
         )
-    
+
 
 @dataclass
 class SimulationConfig:
